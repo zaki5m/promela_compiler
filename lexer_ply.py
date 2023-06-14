@@ -1,5 +1,10 @@
 import ply.lex as lex
 import ply.yacc as yacc
+
+############################
+# lexer
+############################
+
 #List of reserved words
 reserved = {
     'proctype': 'PROCTYPE',
@@ -131,6 +136,10 @@ def t_error(t):
 #     return None
 
 
+############################
+# parser
+############################
+
 precedence = (
     ("left", "PLUS", "MINUS"),
     ("left", "TIMES", "DIVIDE", "MOD")
@@ -146,12 +155,13 @@ def p_module(p):
 
 def p_proctype(p):
     "proctype : active PROCTYPE name LPAREN RPAREN LBRACE sequence RBRACE"
-    p[0] = p[2]
+    p[0] = "proctype", p[2]
+    print("proctype:", p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8])
 
 def p_active(p):
     """active   : ACTIVE
                 | ACTIVE LBRACKET const RBRACKET"""
-    p[0] = p[1]
+    p[0] = "active", p[1]
 
 def p_active_error(p):
     "active : ACTIVE LBRACKET error RBRACKET"
@@ -162,18 +172,23 @@ def p_const(p):
                 | FALSE
                 | SKIP
                 | NUMBER"""
-    p[0] = p[1]
+    p[0] = "const", p[1]
 
 def p_name(p):
     "name : NAME"
-    p[0] = p[1]
+    p[0] = "name", p[1]
 
 def p_sequence(p):
     """sequence     : step
                     | step SEMI sequence"""
+    if len(p) == 2:
+        p[0] = "sequence", p[1]
+    elif len(p) == 4:
+        p[0] = "sequence", p[1], p[3]
 
 def p_step(p):
     "step : stmnt"
+    p[0] = p[1]
 
 def p_stmnt(p):
     """stmnt    : IF options FI
@@ -183,45 +198,61 @@ def p_stmnt(p):
                 | LBRACE sequence RBRACE
                 | PRINTM LPAREN name RPAREN
                 | expr"""
-    if p[1] == "LBRACE":
-        p[0] = "sequence"
-    else:
+    if len(p) == 2:
         p[0] = p[1]
+    elif len(p) == 4:
+        if p[1] == "if" or "do":
+            p[0] = "stmnt", p[1], p[2]
+        elif p[1] == "(":
+            p[0] = "stmnt", p[2]
+    elif len(p)== 5:
+        p[0] = "stmnt", p[1], p[3]
 
 def p_options(p):
     """options  : COLONS sequence
                 | COLONS sequence options"""
+    if len(p) == 3:
+        p[0] = "options", p[2]
+    elif len(p) == 4:
+        p[0] = "options", p[2], p[3]
 
 
 def p_mtype(p):
     "mtype : MTYPE LBRACE names RBRACE"
-    p[0] = p[1]
+    p[0] = "mtype", p[1]
+    print(p[0], p[1], p[2], p[3], p[4])
 
 def p_names(p):
     """names    : name
                 | name COMMA names"""
+    if len(p) == 2:
+        p[0] = p[1]
+    elif len(p) == 4:
+        p[0] = p[1], p[3]
 
 def p_any_expr(p):
     """any_expr : LPAREN any_expr RPAREN
                 | const
                 | any_expr binarop any_expr"""
-    if len(p) == 4:
-        p[0] = p[2]
-    elif len(p) == 2:
-        p[0] = p[1]
-    elif p[2] == "binarop":
-        match p[2]:
-                case "PLUS":
-                    p[0] = p[1] + p[3]
-                case "MINUS":
-                    p[0] = p[1] - p[3]
-                case "TIMES":
-                    p[0] = p[1] * p[3]
-                case "DIVIDE":
-                    p[0] = p[1] // p[3]
-                case "MOD":
-                    p[0] = p[1] % p[3]
-        print(p[0])
+
+    if len(p) == 2:
+        p[0] = "any_expr", p[1]
+    elif len(p) == 4:
+        if p[1] == "(":
+            p[0] = "anyexpr", p[2]
+        elif p[2][0] == "binarop":
+            p[0] = "any_expr", p[1], p[2], p[3]
+        # match p[2]:
+        #         case "PLUS":
+        #             p[0] = p[1] + p[3]
+        #         case "MINUS":
+        #             p[0] = p[1] - p[3]
+        #         case "TIMES":
+        #             p[0] = p[1] * p[3]
+        #         case "DIVIDE":
+        #             p[0] = p[1] // p[3]
+        #         case "MOD":
+        #             p[0] = p[1] % p[3]
 #                 case "AND":
 #                     p[0] = p[1] & p[3]
 #                 case "XOR":
@@ -268,6 +299,7 @@ def p_binarop(p):
 #                     | LSHIFT
 #                     | RSHIFT
 #                     | andor"""
+        p[0] = "binarop", p[1]
 
 def p_expr(p):
     """expr : any_expr
@@ -304,7 +336,7 @@ lexer = lex.lex()   #build
 # lexer = lex.lex(debug = 1)  #debugg
 
 
-# ############# test
+# ############# lex_test
 def lex_test():
     f = open('test2.pml', 'r')
     data = f.read()
@@ -337,7 +369,7 @@ parser = yacc.yacc()
 # parser = yacc.yacc()
 
 def yacc_test():
-    f = open('test2.pml', 'r')
+    f = open('test.pml', 'r')
     data = f.read()
     f.close()
 
