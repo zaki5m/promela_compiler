@@ -1,0 +1,1160 @@
+Created by PLY version 3.10 (http://www.dabeaz.com/ply)
+
+Unused terminals:
+
+    ARROW
+    COLON
+    EQUAL
+    EOF
+    AND
+    XOR
+    OR
+    GT
+    LT
+    GE
+    LE
+    EQ
+    NE
+    LSHIFT
+    RSHIFT
+    LAND
+    LOR
+    COMMENT
+    INT
+
+Grammar
+
+Rule 0     S' -> module
+Rule 1     module -> proctype
+Rule 2     module -> mtype
+Rule 3     proctype -> active PROCTYPE name LPAREN RPAREN LBRACE sequence RBRACE
+Rule 4     active -> ACTIVE
+Rule 5     active -> ACTIVE LBRACKET const RBRACKET
+Rule 6     const -> TRUE
+Rule 7     const -> FALSE
+Rule 8     const -> SKIP
+Rule 9     const -> NUMBER
+Rule 10    name -> NAME
+Rule 11    sequence -> step
+Rule 12    sequence -> step SEMI sequence
+Rule 13    step -> stmnt
+Rule 14    stmnt -> IF options FI
+Rule 15    stmnt -> DO options OD
+Rule 16    stmnt -> ATOMIC LBRACE sequence RBRACE
+Rule 17    stmnt -> D_STEP LBRACE sequence RBRACE
+Rule 18    stmnt -> LBRACE sequence RBRACE
+Rule 19    stmnt -> PRINTM LPAREN name RPAREN
+Rule 20    stmnt -> expr
+Rule 21    options -> COLONS sequence
+Rule 22    options -> COLONS sequence options
+Rule 23    mtype -> MTYPE LBRACE names RBRACE
+Rule 24    names -> name
+Rule 25    names -> name COMMA names
+Rule 26    any_expr -> LPAREN any_expr RPAREN
+Rule 27    any_expr -> const
+Rule 28    any_expr -> any_expr binarop any_expr
+Rule 29    binarop -> PLUS
+Rule 30    binarop -> MINUS
+Rule 31    binarop -> TIMES
+Rule 32    binarop -> DIVIDE
+Rule 33    binarop -> MOD
+Rule 34    expr -> any_expr
+Rule 35    expr -> LPAREN expr RPAREN
+
+Terminals, with rules where they appear
+
+ACTIVE               : 4 5
+AND                  : 
+ARROW                : 
+ATOMIC               : 16
+COLON                : 
+COLONS               : 21 22
+COMMA                : 25
+COMMENT              : 
+DIVIDE               : 32
+DO                   : 15
+D_STEP               : 17
+EOF                  : 
+EQ                   : 
+EQUAL                : 
+FALSE                : 7
+FI                   : 14
+GE                   : 
+GT                   : 
+IF                   : 14
+INT                  : 
+LAND                 : 
+LBRACE               : 3 16 17 18 23
+LBRACKET             : 5
+LE                   : 
+LOR                  : 
+LPAREN               : 3 19 26 35
+LSHIFT               : 
+LT                   : 
+MINUS                : 30
+MOD                  : 33
+MTYPE                : 23
+NAME                 : 10
+NE                   : 
+NUMBER               : 9
+OD                   : 15
+OR                   : 
+PLUS                 : 29
+PRINTM               : 19
+PROCTYPE             : 3
+RBRACE               : 3 16 17 18 23
+RBRACKET             : 5
+RPAREN               : 3 19 26 35
+RSHIFT               : 
+SEMI                 : 12
+SKIP                 : 8
+TIMES                : 31
+TRUE                 : 6
+XOR                  : 
+error                : 
+
+Nonterminals, with rules where they appear
+
+active               : 3
+any_expr             : 26 28 28 34
+binarop              : 28
+const                : 5 27
+expr                 : 20 35
+module               : 0
+mtype                : 2
+name                 : 3 19 24 25
+names                : 23 25
+options              : 14 15 22
+proctype             : 1
+sequence             : 3 12 16 17 18 21 22
+step                 : 11 12
+stmnt                : 13
+
+Parsing method: LALR
+
+state 0
+
+    (0) S' -> . module
+    (1) module -> . proctype
+    (2) module -> . mtype
+    (3) proctype -> . active PROCTYPE name LPAREN RPAREN LBRACE sequence RBRACE
+    (23) mtype -> . MTYPE LBRACE names RBRACE
+    (4) active -> . ACTIVE
+    (5) active -> . ACTIVE LBRACKET const RBRACKET
+
+    MTYPE           shift and go to state 5
+    ACTIVE          shift and go to state 6
+
+    module                         shift and go to state 1
+    proctype                       shift and go to state 2
+    mtype                          shift and go to state 3
+    active                         shift and go to state 4
+
+state 1
+
+    (0) S' -> module .
+
+
+
+state 2
+
+    (1) module -> proctype .
+
+    $end            reduce using rule 1 (module -> proctype .)
+
+
+state 3
+
+    (2) module -> mtype .
+
+    $end            reduce using rule 2 (module -> mtype .)
+
+
+state 4
+
+    (3) proctype -> active . PROCTYPE name LPAREN RPAREN LBRACE sequence RBRACE
+
+    PROCTYPE        shift and go to state 7
+
+
+state 5
+
+    (23) mtype -> MTYPE . LBRACE names RBRACE
+
+    LBRACE          shift and go to state 8
+
+
+state 6
+
+    (4) active -> ACTIVE .
+    (5) active -> ACTIVE . LBRACKET const RBRACKET
+
+    PROCTYPE        reduce using rule 4 (active -> ACTIVE .)
+    LBRACKET        shift and go to state 9
+
+
+state 7
+
+    (3) proctype -> active PROCTYPE . name LPAREN RPAREN LBRACE sequence RBRACE
+    (10) name -> . NAME
+
+    NAME            shift and go to state 11
+
+    name                           shift and go to state 10
+
+state 8
+
+    (23) mtype -> MTYPE LBRACE . names RBRACE
+    (24) names -> . name
+    (25) names -> . name COMMA names
+    (10) name -> . NAME
+
+    NAME            shift and go to state 11
+
+    names                          shift and go to state 12
+    name                           shift and go to state 13
+
+state 9
+
+    (5) active -> ACTIVE LBRACKET . const RBRACKET
+    (6) const -> . TRUE
+    (7) const -> . FALSE
+    (8) const -> . SKIP
+    (9) const -> . NUMBER
+
+    TRUE            shift and go to state 15
+    FALSE           shift and go to state 16
+    SKIP            shift and go to state 17
+    NUMBER          shift and go to state 18
+
+    const                          shift and go to state 14
+
+state 10
+
+    (3) proctype -> active PROCTYPE name . LPAREN RPAREN LBRACE sequence RBRACE
+
+    LPAREN          shift and go to state 19
+
+
+state 11
+
+    (10) name -> NAME .
+
+    LPAREN          reduce using rule 10 (name -> NAME .)
+    COMMA           reduce using rule 10 (name -> NAME .)
+    RBRACE          reduce using rule 10 (name -> NAME .)
+    RPAREN          reduce using rule 10 (name -> NAME .)
+
+
+state 12
+
+    (23) mtype -> MTYPE LBRACE names . RBRACE
+
+    RBRACE          shift and go to state 20
+
+
+state 13
+
+    (24) names -> name .
+    (25) names -> name . COMMA names
+
+    RBRACE          reduce using rule 24 (names -> name .)
+    COMMA           shift and go to state 21
+
+
+state 14
+
+    (5) active -> ACTIVE LBRACKET const . RBRACKET
+
+    RBRACKET        shift and go to state 22
+
+
+state 15
+
+    (6) const -> TRUE .
+
+    RBRACKET        reduce using rule 6 (const -> TRUE .)
+    PLUS            reduce using rule 6 (const -> TRUE .)
+    MINUS           reduce using rule 6 (const -> TRUE .)
+    TIMES           reduce using rule 6 (const -> TRUE .)
+    DIVIDE          reduce using rule 6 (const -> TRUE .)
+    MOD             reduce using rule 6 (const -> TRUE .)
+    SEMI            reduce using rule 6 (const -> TRUE .)
+    RBRACE          reduce using rule 6 (const -> TRUE .)
+    RPAREN          reduce using rule 6 (const -> TRUE .)
+    COLONS          reduce using rule 6 (const -> TRUE .)
+    FI              reduce using rule 6 (const -> TRUE .)
+    OD              reduce using rule 6 (const -> TRUE .)
+
+
+state 16
+
+    (7) const -> FALSE .
+
+    RBRACKET        reduce using rule 7 (const -> FALSE .)
+    PLUS            reduce using rule 7 (const -> FALSE .)
+    MINUS           reduce using rule 7 (const -> FALSE .)
+    TIMES           reduce using rule 7 (const -> FALSE .)
+    DIVIDE          reduce using rule 7 (const -> FALSE .)
+    MOD             reduce using rule 7 (const -> FALSE .)
+    SEMI            reduce using rule 7 (const -> FALSE .)
+    RBRACE          reduce using rule 7 (const -> FALSE .)
+    RPAREN          reduce using rule 7 (const -> FALSE .)
+    COLONS          reduce using rule 7 (const -> FALSE .)
+    FI              reduce using rule 7 (const -> FALSE .)
+    OD              reduce using rule 7 (const -> FALSE .)
+
+
+state 17
+
+    (8) const -> SKIP .
+
+    RBRACKET        reduce using rule 8 (const -> SKIP .)
+    PLUS            reduce using rule 8 (const -> SKIP .)
+    MINUS           reduce using rule 8 (const -> SKIP .)
+    TIMES           reduce using rule 8 (const -> SKIP .)
+    DIVIDE          reduce using rule 8 (const -> SKIP .)
+    MOD             reduce using rule 8 (const -> SKIP .)
+    SEMI            reduce using rule 8 (const -> SKIP .)
+    RBRACE          reduce using rule 8 (const -> SKIP .)
+    RPAREN          reduce using rule 8 (const -> SKIP .)
+    COLONS          reduce using rule 8 (const -> SKIP .)
+    FI              reduce using rule 8 (const -> SKIP .)
+    OD              reduce using rule 8 (const -> SKIP .)
+
+
+state 18
+
+    (9) const -> NUMBER .
+
+    RBRACKET        reduce using rule 9 (const -> NUMBER .)
+    PLUS            reduce using rule 9 (const -> NUMBER .)
+    MINUS           reduce using rule 9 (const -> NUMBER .)
+    TIMES           reduce using rule 9 (const -> NUMBER .)
+    DIVIDE          reduce using rule 9 (const -> NUMBER .)
+    MOD             reduce using rule 9 (const -> NUMBER .)
+    SEMI            reduce using rule 9 (const -> NUMBER .)
+    RBRACE          reduce using rule 9 (const -> NUMBER .)
+    RPAREN          reduce using rule 9 (const -> NUMBER .)
+    COLONS          reduce using rule 9 (const -> NUMBER .)
+    FI              reduce using rule 9 (const -> NUMBER .)
+    OD              reduce using rule 9 (const -> NUMBER .)
+
+
+state 19
+
+    (3) proctype -> active PROCTYPE name LPAREN . RPAREN LBRACE sequence RBRACE
+
+    RPAREN          shift and go to state 23
+
+
+state 20
+
+    (23) mtype -> MTYPE LBRACE names RBRACE .
+
+    $end            reduce using rule 23 (mtype -> MTYPE LBRACE names RBRACE .)
+
+
+state 21
+
+    (25) names -> name COMMA . names
+    (24) names -> . name
+    (25) names -> . name COMMA names
+    (10) name -> . NAME
+
+    NAME            shift and go to state 11
+
+    name                           shift and go to state 13
+    names                          shift and go to state 24
+
+state 22
+
+    (5) active -> ACTIVE LBRACKET const RBRACKET .
+
+    PROCTYPE        reduce using rule 5 (active -> ACTIVE LBRACKET const RBRACKET .)
+
+
+state 23
+
+    (3) proctype -> active PROCTYPE name LPAREN RPAREN . LBRACE sequence RBRACE
+
+    LBRACE          shift and go to state 25
+
+
+state 24
+
+    (25) names -> name COMMA names .
+
+    RBRACE          reduce using rule 25 (names -> name COMMA names .)
+
+
+state 25
+
+    (3) proctype -> active PROCTYPE name LPAREN RPAREN LBRACE . sequence RBRACE
+    (11) sequence -> . step
+    (12) sequence -> . step SEMI sequence
+    (13) step -> . stmnt
+    (14) stmnt -> . IF options FI
+    (15) stmnt -> . DO options OD
+    (16) stmnt -> . ATOMIC LBRACE sequence RBRACE
+    (17) stmnt -> . D_STEP LBRACE sequence RBRACE
+    (18) stmnt -> . LBRACE sequence RBRACE
+    (19) stmnt -> . PRINTM LPAREN name RPAREN
+    (20) stmnt -> . expr
+    (34) expr -> . any_expr
+    (35) expr -> . LPAREN expr RPAREN
+    (26) any_expr -> . LPAREN any_expr RPAREN
+    (27) any_expr -> . const
+    (28) any_expr -> . any_expr binarop any_expr
+    (6) const -> . TRUE
+    (7) const -> . FALSE
+    (8) const -> . SKIP
+    (9) const -> . NUMBER
+
+    IF              shift and go to state 31
+    DO              shift and go to state 32
+    ATOMIC          shift and go to state 33
+    D_STEP          shift and go to state 34
+    LBRACE          shift and go to state 27
+    PRINTM          shift and go to state 35
+    LPAREN          shift and go to state 26
+    TRUE            shift and go to state 15
+    FALSE           shift and go to state 16
+    SKIP            shift and go to state 17
+    NUMBER          shift and go to state 18
+
+    sequence                       shift and go to state 28
+    step                           shift and go to state 29
+    stmnt                          shift and go to state 30
+    expr                           shift and go to state 36
+    any_expr                       shift and go to state 37
+    const                          shift and go to state 38
+
+state 26
+
+    (35) expr -> LPAREN . expr RPAREN
+    (26) any_expr -> LPAREN . any_expr RPAREN
+    (34) expr -> . any_expr
+    (35) expr -> . LPAREN expr RPAREN
+    (26) any_expr -> . LPAREN any_expr RPAREN
+    (27) any_expr -> . const
+    (28) any_expr -> . any_expr binarop any_expr
+    (6) const -> . TRUE
+    (7) const -> . FALSE
+    (8) const -> . SKIP
+    (9) const -> . NUMBER
+
+    LPAREN          shift and go to state 26
+    TRUE            shift and go to state 15
+    FALSE           shift and go to state 16
+    SKIP            shift and go to state 17
+    NUMBER          shift and go to state 18
+
+    expr                           shift and go to state 39
+    any_expr                       shift and go to state 40
+    const                          shift and go to state 38
+
+state 27
+
+    (18) stmnt -> LBRACE . sequence RBRACE
+    (11) sequence -> . step
+    (12) sequence -> . step SEMI sequence
+    (13) step -> . stmnt
+    (14) stmnt -> . IF options FI
+    (15) stmnt -> . DO options OD
+    (16) stmnt -> . ATOMIC LBRACE sequence RBRACE
+    (17) stmnt -> . D_STEP LBRACE sequence RBRACE
+    (18) stmnt -> . LBRACE sequence RBRACE
+    (19) stmnt -> . PRINTM LPAREN name RPAREN
+    (20) stmnt -> . expr
+    (34) expr -> . any_expr
+    (35) expr -> . LPAREN expr RPAREN
+    (26) any_expr -> . LPAREN any_expr RPAREN
+    (27) any_expr -> . const
+    (28) any_expr -> . any_expr binarop any_expr
+    (6) const -> . TRUE
+    (7) const -> . FALSE
+    (8) const -> . SKIP
+    (9) const -> . NUMBER
+
+    IF              shift and go to state 31
+    DO              shift and go to state 32
+    ATOMIC          shift and go to state 33
+    D_STEP          shift and go to state 34
+    LBRACE          shift and go to state 27
+    PRINTM          shift and go to state 35
+    LPAREN          shift and go to state 26
+    TRUE            shift and go to state 15
+    FALSE           shift and go to state 16
+    SKIP            shift and go to state 17
+    NUMBER          shift and go to state 18
+
+    sequence                       shift and go to state 41
+    step                           shift and go to state 29
+    stmnt                          shift and go to state 30
+    expr                           shift and go to state 36
+    any_expr                       shift and go to state 37
+    const                          shift and go to state 38
+
+state 28
+
+    (3) proctype -> active PROCTYPE name LPAREN RPAREN LBRACE sequence . RBRACE
+
+    RBRACE          shift and go to state 42
+
+
+state 29
+
+    (11) sequence -> step .
+    (12) sequence -> step . SEMI sequence
+
+    RBRACE          reduce using rule 11 (sequence -> step .)
+    COLONS          reduce using rule 11 (sequence -> step .)
+    FI              reduce using rule 11 (sequence -> step .)
+    OD              reduce using rule 11 (sequence -> step .)
+    SEMI            shift and go to state 43
+
+
+state 30
+
+    (13) step -> stmnt .
+
+    SEMI            reduce using rule 13 (step -> stmnt .)
+    RBRACE          reduce using rule 13 (step -> stmnt .)
+    COLONS          reduce using rule 13 (step -> stmnt .)
+    FI              reduce using rule 13 (step -> stmnt .)
+    OD              reduce using rule 13 (step -> stmnt .)
+
+
+state 31
+
+    (14) stmnt -> IF . options FI
+    (21) options -> . COLONS sequence
+    (22) options -> . COLONS sequence options
+
+    COLONS          shift and go to state 45
+
+    options                        shift and go to state 44
+
+state 32
+
+    (15) stmnt -> DO . options OD
+    (21) options -> . COLONS sequence
+    (22) options -> . COLONS sequence options
+
+    COLONS          shift and go to state 45
+
+    options                        shift and go to state 46
+
+state 33
+
+    (16) stmnt -> ATOMIC . LBRACE sequence RBRACE
+
+    LBRACE          shift and go to state 47
+
+
+state 34
+
+    (17) stmnt -> D_STEP . LBRACE sequence RBRACE
+
+    LBRACE          shift and go to state 48
+
+
+state 35
+
+    (19) stmnt -> PRINTM . LPAREN name RPAREN
+
+    LPAREN          shift and go to state 49
+
+
+state 36
+
+    (20) stmnt -> expr .
+
+    SEMI            reduce using rule 20 (stmnt -> expr .)
+    RBRACE          reduce using rule 20 (stmnt -> expr .)
+    COLONS          reduce using rule 20 (stmnt -> expr .)
+    FI              reduce using rule 20 (stmnt -> expr .)
+    OD              reduce using rule 20 (stmnt -> expr .)
+
+
+state 37
+
+    (34) expr -> any_expr .
+    (28) any_expr -> any_expr . binarop any_expr
+    (29) binarop -> . PLUS
+    (30) binarop -> . MINUS
+    (31) binarop -> . TIMES
+    (32) binarop -> . DIVIDE
+    (33) binarop -> . MOD
+
+    SEMI            reduce using rule 34 (expr -> any_expr .)
+    RBRACE          reduce using rule 34 (expr -> any_expr .)
+    COLONS          reduce using rule 34 (expr -> any_expr .)
+    FI              reduce using rule 34 (expr -> any_expr .)
+    OD              reduce using rule 34 (expr -> any_expr .)
+    PLUS            shift and go to state 51
+    MINUS           shift and go to state 52
+    TIMES           shift and go to state 53
+    DIVIDE          shift and go to state 54
+    MOD             shift and go to state 55
+
+    binarop                        shift and go to state 50
+
+state 38
+
+    (27) any_expr -> const .
+
+    PLUS            reduce using rule 27 (any_expr -> const .)
+    MINUS           reduce using rule 27 (any_expr -> const .)
+    TIMES           reduce using rule 27 (any_expr -> const .)
+    DIVIDE          reduce using rule 27 (any_expr -> const .)
+    MOD             reduce using rule 27 (any_expr -> const .)
+    SEMI            reduce using rule 27 (any_expr -> const .)
+    RBRACE          reduce using rule 27 (any_expr -> const .)
+    RPAREN          reduce using rule 27 (any_expr -> const .)
+    COLONS          reduce using rule 27 (any_expr -> const .)
+    FI              reduce using rule 27 (any_expr -> const .)
+    OD              reduce using rule 27 (any_expr -> const .)
+
+
+state 39
+
+    (35) expr -> LPAREN expr . RPAREN
+
+    RPAREN          shift and go to state 56
+
+
+state 40
+
+    (26) any_expr -> LPAREN any_expr . RPAREN
+    (34) expr -> any_expr .
+    (28) any_expr -> any_expr . binarop any_expr
+    (29) binarop -> . PLUS
+    (30) binarop -> . MINUS
+    (31) binarop -> . TIMES
+    (32) binarop -> . DIVIDE
+    (33) binarop -> . MOD
+
+  ! shift/reduce conflict for RPAREN resolved as shift
+    RPAREN          shift and go to state 57
+    PLUS            shift and go to state 51
+    MINUS           shift and go to state 52
+    TIMES           shift and go to state 53
+    DIVIDE          shift and go to state 54
+    MOD             shift and go to state 55
+
+  ! RPAREN          [ reduce using rule 34 (expr -> any_expr .) ]
+
+    binarop                        shift and go to state 50
+
+state 41
+
+    (18) stmnt -> LBRACE sequence . RBRACE
+
+    RBRACE          shift and go to state 58
+
+
+state 42
+
+    (3) proctype -> active PROCTYPE name LPAREN RPAREN LBRACE sequence RBRACE .
+
+    $end            reduce using rule 3 (proctype -> active PROCTYPE name LPAREN RPAREN LBRACE sequence RBRACE .)
+
+
+state 43
+
+    (12) sequence -> step SEMI . sequence
+    (11) sequence -> . step
+    (12) sequence -> . step SEMI sequence
+    (13) step -> . stmnt
+    (14) stmnt -> . IF options FI
+    (15) stmnt -> . DO options OD
+    (16) stmnt -> . ATOMIC LBRACE sequence RBRACE
+    (17) stmnt -> . D_STEP LBRACE sequence RBRACE
+    (18) stmnt -> . LBRACE sequence RBRACE
+    (19) stmnt -> . PRINTM LPAREN name RPAREN
+    (20) stmnt -> . expr
+    (34) expr -> . any_expr
+    (35) expr -> . LPAREN expr RPAREN
+    (26) any_expr -> . LPAREN any_expr RPAREN
+    (27) any_expr -> . const
+    (28) any_expr -> . any_expr binarop any_expr
+    (6) const -> . TRUE
+    (7) const -> . FALSE
+    (8) const -> . SKIP
+    (9) const -> . NUMBER
+
+    IF              shift and go to state 31
+    DO              shift and go to state 32
+    ATOMIC          shift and go to state 33
+    D_STEP          shift and go to state 34
+    LBRACE          shift and go to state 27
+    PRINTM          shift and go to state 35
+    LPAREN          shift and go to state 26
+    TRUE            shift and go to state 15
+    FALSE           shift and go to state 16
+    SKIP            shift and go to state 17
+    NUMBER          shift and go to state 18
+
+    step                           shift and go to state 29
+    sequence                       shift and go to state 59
+    stmnt                          shift and go to state 30
+    expr                           shift and go to state 36
+    any_expr                       shift and go to state 37
+    const                          shift and go to state 38
+
+state 44
+
+    (14) stmnt -> IF options . FI
+
+    FI              shift and go to state 60
+
+
+state 45
+
+    (21) options -> COLONS . sequence
+    (22) options -> COLONS . sequence options
+    (11) sequence -> . step
+    (12) sequence -> . step SEMI sequence
+    (13) step -> . stmnt
+    (14) stmnt -> . IF options FI
+    (15) stmnt -> . DO options OD
+    (16) stmnt -> . ATOMIC LBRACE sequence RBRACE
+    (17) stmnt -> . D_STEP LBRACE sequence RBRACE
+    (18) stmnt -> . LBRACE sequence RBRACE
+    (19) stmnt -> . PRINTM LPAREN name RPAREN
+    (20) stmnt -> . expr
+    (34) expr -> . any_expr
+    (35) expr -> . LPAREN expr RPAREN
+    (26) any_expr -> . LPAREN any_expr RPAREN
+    (27) any_expr -> . const
+    (28) any_expr -> . any_expr binarop any_expr
+    (6) const -> . TRUE
+    (7) const -> . FALSE
+    (8) const -> . SKIP
+    (9) const -> . NUMBER
+
+    IF              shift and go to state 31
+    DO              shift and go to state 32
+    ATOMIC          shift and go to state 33
+    D_STEP          shift and go to state 34
+    LBRACE          shift and go to state 27
+    PRINTM          shift and go to state 35
+    LPAREN          shift and go to state 26
+    TRUE            shift and go to state 15
+    FALSE           shift and go to state 16
+    SKIP            shift and go to state 17
+    NUMBER          shift and go to state 18
+
+    sequence                       shift and go to state 61
+    step                           shift and go to state 29
+    stmnt                          shift and go to state 30
+    expr                           shift and go to state 36
+    any_expr                       shift and go to state 37
+    const                          shift and go to state 38
+
+state 46
+
+    (15) stmnt -> DO options . OD
+
+    OD              shift and go to state 62
+
+
+state 47
+
+    (16) stmnt -> ATOMIC LBRACE . sequence RBRACE
+    (11) sequence -> . step
+    (12) sequence -> . step SEMI sequence
+    (13) step -> . stmnt
+    (14) stmnt -> . IF options FI
+    (15) stmnt -> . DO options OD
+    (16) stmnt -> . ATOMIC LBRACE sequence RBRACE
+    (17) stmnt -> . D_STEP LBRACE sequence RBRACE
+    (18) stmnt -> . LBRACE sequence RBRACE
+    (19) stmnt -> . PRINTM LPAREN name RPAREN
+    (20) stmnt -> . expr
+    (34) expr -> . any_expr
+    (35) expr -> . LPAREN expr RPAREN
+    (26) any_expr -> . LPAREN any_expr RPAREN
+    (27) any_expr -> . const
+    (28) any_expr -> . any_expr binarop any_expr
+    (6) const -> . TRUE
+    (7) const -> . FALSE
+    (8) const -> . SKIP
+    (9) const -> . NUMBER
+
+    IF              shift and go to state 31
+    DO              shift and go to state 32
+    ATOMIC          shift and go to state 33
+    D_STEP          shift and go to state 34
+    LBRACE          shift and go to state 27
+    PRINTM          shift and go to state 35
+    LPAREN          shift and go to state 26
+    TRUE            shift and go to state 15
+    FALSE           shift and go to state 16
+    SKIP            shift and go to state 17
+    NUMBER          shift and go to state 18
+
+    sequence                       shift and go to state 63
+    step                           shift and go to state 29
+    stmnt                          shift and go to state 30
+    expr                           shift and go to state 36
+    any_expr                       shift and go to state 37
+    const                          shift and go to state 38
+
+state 48
+
+    (17) stmnt -> D_STEP LBRACE . sequence RBRACE
+    (11) sequence -> . step
+    (12) sequence -> . step SEMI sequence
+    (13) step -> . stmnt
+    (14) stmnt -> . IF options FI
+    (15) stmnt -> . DO options OD
+    (16) stmnt -> . ATOMIC LBRACE sequence RBRACE
+    (17) stmnt -> . D_STEP LBRACE sequence RBRACE
+    (18) stmnt -> . LBRACE sequence RBRACE
+    (19) stmnt -> . PRINTM LPAREN name RPAREN
+    (20) stmnt -> . expr
+    (34) expr -> . any_expr
+    (35) expr -> . LPAREN expr RPAREN
+    (26) any_expr -> . LPAREN any_expr RPAREN
+    (27) any_expr -> . const
+    (28) any_expr -> . any_expr binarop any_expr
+    (6) const -> . TRUE
+    (7) const -> . FALSE
+    (8) const -> . SKIP
+    (9) const -> . NUMBER
+
+    IF              shift and go to state 31
+    DO              shift and go to state 32
+    ATOMIC          shift and go to state 33
+    D_STEP          shift and go to state 34
+    LBRACE          shift and go to state 27
+    PRINTM          shift and go to state 35
+    LPAREN          shift and go to state 26
+    TRUE            shift and go to state 15
+    FALSE           shift and go to state 16
+    SKIP            shift and go to state 17
+    NUMBER          shift and go to state 18
+
+    sequence                       shift and go to state 64
+    step                           shift and go to state 29
+    stmnt                          shift and go to state 30
+    expr                           shift and go to state 36
+    any_expr                       shift and go to state 37
+    const                          shift and go to state 38
+
+state 49
+
+    (19) stmnt -> PRINTM LPAREN . name RPAREN
+    (10) name -> . NAME
+
+    NAME            shift and go to state 11
+
+    name                           shift and go to state 65
+
+state 50
+
+    (28) any_expr -> any_expr binarop . any_expr
+    (26) any_expr -> . LPAREN any_expr RPAREN
+    (27) any_expr -> . const
+    (28) any_expr -> . any_expr binarop any_expr
+    (6) const -> . TRUE
+    (7) const -> . FALSE
+    (8) const -> . SKIP
+    (9) const -> . NUMBER
+
+    LPAREN          shift and go to state 67
+    TRUE            shift and go to state 15
+    FALSE           shift and go to state 16
+    SKIP            shift and go to state 17
+    NUMBER          shift and go to state 18
+
+    any_expr                       shift and go to state 66
+    const                          shift and go to state 38
+
+state 51
+
+    (29) binarop -> PLUS .
+
+    LPAREN          reduce using rule 29 (binarop -> PLUS .)
+    TRUE            reduce using rule 29 (binarop -> PLUS .)
+    FALSE           reduce using rule 29 (binarop -> PLUS .)
+    SKIP            reduce using rule 29 (binarop -> PLUS .)
+    NUMBER          reduce using rule 29 (binarop -> PLUS .)
+
+
+state 52
+
+    (30) binarop -> MINUS .
+
+    LPAREN          reduce using rule 30 (binarop -> MINUS .)
+    TRUE            reduce using rule 30 (binarop -> MINUS .)
+    FALSE           reduce using rule 30 (binarop -> MINUS .)
+    SKIP            reduce using rule 30 (binarop -> MINUS .)
+    NUMBER          reduce using rule 30 (binarop -> MINUS .)
+
+
+state 53
+
+    (31) binarop -> TIMES .
+
+    LPAREN          reduce using rule 31 (binarop -> TIMES .)
+    TRUE            reduce using rule 31 (binarop -> TIMES .)
+    FALSE           reduce using rule 31 (binarop -> TIMES .)
+    SKIP            reduce using rule 31 (binarop -> TIMES .)
+    NUMBER          reduce using rule 31 (binarop -> TIMES .)
+
+
+state 54
+
+    (32) binarop -> DIVIDE .
+
+    LPAREN          reduce using rule 32 (binarop -> DIVIDE .)
+    TRUE            reduce using rule 32 (binarop -> DIVIDE .)
+    FALSE           reduce using rule 32 (binarop -> DIVIDE .)
+    SKIP            reduce using rule 32 (binarop -> DIVIDE .)
+    NUMBER          reduce using rule 32 (binarop -> DIVIDE .)
+
+
+state 55
+
+    (33) binarop -> MOD .
+
+    LPAREN          reduce using rule 33 (binarop -> MOD .)
+    TRUE            reduce using rule 33 (binarop -> MOD .)
+    FALSE           reduce using rule 33 (binarop -> MOD .)
+    SKIP            reduce using rule 33 (binarop -> MOD .)
+    NUMBER          reduce using rule 33 (binarop -> MOD .)
+
+
+state 56
+
+    (35) expr -> LPAREN expr RPAREN .
+
+    SEMI            reduce using rule 35 (expr -> LPAREN expr RPAREN .)
+    RBRACE          reduce using rule 35 (expr -> LPAREN expr RPAREN .)
+    RPAREN          reduce using rule 35 (expr -> LPAREN expr RPAREN .)
+    COLONS          reduce using rule 35 (expr -> LPAREN expr RPAREN .)
+    FI              reduce using rule 35 (expr -> LPAREN expr RPAREN .)
+    OD              reduce using rule 35 (expr -> LPAREN expr RPAREN .)
+
+
+state 57
+
+    (26) any_expr -> LPAREN any_expr RPAREN .
+
+    PLUS            reduce using rule 26 (any_expr -> LPAREN any_expr RPAREN .)
+    MINUS           reduce using rule 26 (any_expr -> LPAREN any_expr RPAREN .)
+    TIMES           reduce using rule 26 (any_expr -> LPAREN any_expr RPAREN .)
+    DIVIDE          reduce using rule 26 (any_expr -> LPAREN any_expr RPAREN .)
+    MOD             reduce using rule 26 (any_expr -> LPAREN any_expr RPAREN .)
+    SEMI            reduce using rule 26 (any_expr -> LPAREN any_expr RPAREN .)
+    RBRACE          reduce using rule 26 (any_expr -> LPAREN any_expr RPAREN .)
+    RPAREN          reduce using rule 26 (any_expr -> LPAREN any_expr RPAREN .)
+    COLONS          reduce using rule 26 (any_expr -> LPAREN any_expr RPAREN .)
+    FI              reduce using rule 26 (any_expr -> LPAREN any_expr RPAREN .)
+    OD              reduce using rule 26 (any_expr -> LPAREN any_expr RPAREN .)
+
+
+state 58
+
+    (18) stmnt -> LBRACE sequence RBRACE .
+
+    SEMI            reduce using rule 18 (stmnt -> LBRACE sequence RBRACE .)
+    RBRACE          reduce using rule 18 (stmnt -> LBRACE sequence RBRACE .)
+    COLONS          reduce using rule 18 (stmnt -> LBRACE sequence RBRACE .)
+    FI              reduce using rule 18 (stmnt -> LBRACE sequence RBRACE .)
+    OD              reduce using rule 18 (stmnt -> LBRACE sequence RBRACE .)
+
+
+state 59
+
+    (12) sequence -> step SEMI sequence .
+
+    RBRACE          reduce using rule 12 (sequence -> step SEMI sequence .)
+    COLONS          reduce using rule 12 (sequence -> step SEMI sequence .)
+    FI              reduce using rule 12 (sequence -> step SEMI sequence .)
+    OD              reduce using rule 12 (sequence -> step SEMI sequence .)
+
+
+state 60
+
+    (14) stmnt -> IF options FI .
+
+    SEMI            reduce using rule 14 (stmnt -> IF options FI .)
+    RBRACE          reduce using rule 14 (stmnt -> IF options FI .)
+    COLONS          reduce using rule 14 (stmnt -> IF options FI .)
+    FI              reduce using rule 14 (stmnt -> IF options FI .)
+    OD              reduce using rule 14 (stmnt -> IF options FI .)
+
+
+state 61
+
+    (21) options -> COLONS sequence .
+    (22) options -> COLONS sequence . options
+    (21) options -> . COLONS sequence
+    (22) options -> . COLONS sequence options
+
+    FI              reduce using rule 21 (options -> COLONS sequence .)
+    OD              reduce using rule 21 (options -> COLONS sequence .)
+    COLONS          shift and go to state 45
+
+    options                        shift and go to state 68
+
+state 62
+
+    (15) stmnt -> DO options OD .
+
+    SEMI            reduce using rule 15 (stmnt -> DO options OD .)
+    RBRACE          reduce using rule 15 (stmnt -> DO options OD .)
+    COLONS          reduce using rule 15 (stmnt -> DO options OD .)
+    FI              reduce using rule 15 (stmnt -> DO options OD .)
+    OD              reduce using rule 15 (stmnt -> DO options OD .)
+
+
+state 63
+
+    (16) stmnt -> ATOMIC LBRACE sequence . RBRACE
+
+    RBRACE          shift and go to state 69
+
+
+state 64
+
+    (17) stmnt -> D_STEP LBRACE sequence . RBRACE
+
+    RBRACE          shift and go to state 70
+
+
+state 65
+
+    (19) stmnt -> PRINTM LPAREN name . RPAREN
+
+    RPAREN          shift and go to state 71
+
+
+state 66
+
+    (28) any_expr -> any_expr binarop any_expr .
+    (28) any_expr -> any_expr . binarop any_expr
+    (29) binarop -> . PLUS
+    (30) binarop -> . MINUS
+    (31) binarop -> . TIMES
+    (32) binarop -> . DIVIDE
+    (33) binarop -> . MOD
+
+  ! shift/reduce conflict for PLUS resolved as shift
+  ! shift/reduce conflict for MINUS resolved as shift
+  ! shift/reduce conflict for TIMES resolved as shift
+  ! shift/reduce conflict for DIVIDE resolved as shift
+  ! shift/reduce conflict for MOD resolved as shift
+    SEMI            reduce using rule 28 (any_expr -> any_expr binarop any_expr .)
+    RBRACE          reduce using rule 28 (any_expr -> any_expr binarop any_expr .)
+    RPAREN          reduce using rule 28 (any_expr -> any_expr binarop any_expr .)
+    COLONS          reduce using rule 28 (any_expr -> any_expr binarop any_expr .)
+    FI              reduce using rule 28 (any_expr -> any_expr binarop any_expr .)
+    OD              reduce using rule 28 (any_expr -> any_expr binarop any_expr .)
+    PLUS            shift and go to state 51
+    MINUS           shift and go to state 52
+    TIMES           shift and go to state 53
+    DIVIDE          shift and go to state 54
+    MOD             shift and go to state 55
+
+  ! PLUS            [ reduce using rule 28 (any_expr -> any_expr binarop any_expr .) ]
+  ! MINUS           [ reduce using rule 28 (any_expr -> any_expr binarop any_expr .) ]
+  ! TIMES           [ reduce using rule 28 (any_expr -> any_expr binarop any_expr .) ]
+  ! DIVIDE          [ reduce using rule 28 (any_expr -> any_expr binarop any_expr .) ]
+  ! MOD             [ reduce using rule 28 (any_expr -> any_expr binarop any_expr .) ]
+
+    binarop                        shift and go to state 50
+
+state 67
+
+    (26) any_expr -> LPAREN . any_expr RPAREN
+    (26) any_expr -> . LPAREN any_expr RPAREN
+    (27) any_expr -> . const
+    (28) any_expr -> . any_expr binarop any_expr
+    (6) const -> . TRUE
+    (7) const -> . FALSE
+    (8) const -> . SKIP
+    (9) const -> . NUMBER
+
+    LPAREN          shift and go to state 67
+    TRUE            shift and go to state 15
+    FALSE           shift and go to state 16
+    SKIP            shift and go to state 17
+    NUMBER          shift and go to state 18
+
+    any_expr                       shift and go to state 72
+    const                          shift and go to state 38
+
+state 68
+
+    (22) options -> COLONS sequence options .
+
+    FI              reduce using rule 22 (options -> COLONS sequence options .)
+    OD              reduce using rule 22 (options -> COLONS sequence options .)
+
+
+state 69
+
+    (16) stmnt -> ATOMIC LBRACE sequence RBRACE .
+
+    SEMI            reduce using rule 16 (stmnt -> ATOMIC LBRACE sequence RBRACE .)
+    RBRACE          reduce using rule 16 (stmnt -> ATOMIC LBRACE sequence RBRACE .)
+    COLONS          reduce using rule 16 (stmnt -> ATOMIC LBRACE sequence RBRACE .)
+    FI              reduce using rule 16 (stmnt -> ATOMIC LBRACE sequence RBRACE .)
+    OD              reduce using rule 16 (stmnt -> ATOMIC LBRACE sequence RBRACE .)
+
+
+state 70
+
+    (17) stmnt -> D_STEP LBRACE sequence RBRACE .
+
+    SEMI            reduce using rule 17 (stmnt -> D_STEP LBRACE sequence RBRACE .)
+    RBRACE          reduce using rule 17 (stmnt -> D_STEP LBRACE sequence RBRACE .)
+    COLONS          reduce using rule 17 (stmnt -> D_STEP LBRACE sequence RBRACE .)
+    FI              reduce using rule 17 (stmnt -> D_STEP LBRACE sequence RBRACE .)
+    OD              reduce using rule 17 (stmnt -> D_STEP LBRACE sequence RBRACE .)
+
+
+state 71
+
+    (19) stmnt -> PRINTM LPAREN name RPAREN .
+
+    SEMI            reduce using rule 19 (stmnt -> PRINTM LPAREN name RPAREN .)
+    RBRACE          reduce using rule 19 (stmnt -> PRINTM LPAREN name RPAREN .)
+    COLONS          reduce using rule 19 (stmnt -> PRINTM LPAREN name RPAREN .)
+    FI              reduce using rule 19 (stmnt -> PRINTM LPAREN name RPAREN .)
+    OD              reduce using rule 19 (stmnt -> PRINTM LPAREN name RPAREN .)
+
+
+state 72
+
+    (26) any_expr -> LPAREN any_expr . RPAREN
+    (28) any_expr -> any_expr . binarop any_expr
+    (29) binarop -> . PLUS
+    (30) binarop -> . MINUS
+    (31) binarop -> . TIMES
+    (32) binarop -> . DIVIDE
+    (33) binarop -> . MOD
+
+    RPAREN          shift and go to state 57
+    PLUS            shift and go to state 51
+    MINUS           shift and go to state 52
+    TIMES           shift and go to state 53
+    DIVIDE          shift and go to state 54
+    MOD             shift and go to state 55
+
+    binarop                        shift and go to state 50
+WARNING: 
+WARNING: Conflicts:
+WARNING: 
+WARNING: shift/reduce conflict for RPAREN in state 40 resolved as shift
+WARNING: shift/reduce conflict for PLUS in state 66 resolved as shift
+WARNING: shift/reduce conflict for MINUS in state 66 resolved as shift
+WARNING: shift/reduce conflict for TIMES in state 66 resolved as shift
+WARNING: shift/reduce conflict for DIVIDE in state 66 resolved as shift
+WARNING: shift/reduce conflict for MOD in state 66 resolved as shift
