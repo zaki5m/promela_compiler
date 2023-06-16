@@ -1,5 +1,6 @@
 import ply.lex as lex
 import ply.yacc as yacc
+import queue
 
 ############################
 # lexer
@@ -145,6 +146,30 @@ def print_indent(tab_num):
         print("   ", end="")
         tab_num -= 1
 
+def nesttuple_putqueue(p):
+    last_elem = len(p) - 1
+    if type(p[last_elem]) is tuple:
+        q.put(p[:-1], block = False)
+        nesttuple_putqueue(p[last_elem])
+    else:
+        q.put(p, block=False)
+
+def print_p(p):
+    i = 0
+    while i < len(p):
+        if type(p[i]) is str:
+            print(p[i])
+        elif type(p[i]) is tuple:
+            tab_num = 0
+            nesttuple_putqueue(p[i])
+            while not q.empty():
+                tmp = q.get(block=False)
+                print_indent(tab_num)
+                print(tmp)
+                tab_num += 1
+        i += 1
+
+
 precedence = (
     ("left", "PLUS", "MINUS"),
     ("left", "TIMES", "DIVIDE", "MOD")
@@ -152,7 +177,9 @@ precedence = (
 
 start = "module"
 
-tab_num = 0
+# tab_num = 0
+q = queue.Queue()
+
 
 def p_module(p):
     """module   : proctype
@@ -163,60 +190,34 @@ def p_module(p):
 def p_proctype(p):
     "proctype : active PROCTYPE name LPAREN RPAREN LBRACE sequence RBRACE"
     p[0] = "proctype", p[2]
-    # print(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8])
-    global tab_num
-    print(p[0])
-    tab_num += 1
+    print_p(p)
 
 def p_active(p):
     """active   : ACTIVE
                 | ACTIVE LBRACKET const RBRACKET"""
-    global tab_num
     if len(p) == 2:
         p[0] = "active", p[1]
-        print_indent(tab_num)
-        print(p[0])
-        tab_num = 1
     elif len(p) == 5:
         p[0] = "active", p[3]
-        print_indent(tab_num)
-        print(p[0][0])
-        tab_num += 1
-
 
 def p_const(p):
     """const    : TRUE
                 | FALSE
                 | SKIP
                 | NUMBER"""
-    global tab_num
     p[0] = "const", p[1]
-    print_indent(tab_num)
-    print(p[0])
-    tab_num = 1
 
 def p_name(p):
     "name : NAME"
-    global tab_num
     p[0] = "name", p[1]
-    print_indent(tab_num)
-    print(p[0])
-    tab_num = 1
 
 def p_sequence(p):
     """sequence     : step
                     | step SEMI sequence"""
-    global tab_num
     if len(p) == 2:
         p[0] = "sequence", p[1]
-        print_indent(tab_num)
-        print(p[0][0])
-        tab_num += 1
     elif len(p) == 4:
         p[0] = "sequence", p[1], p[3]
-        print_indent(tab_num)
-        print(p[0][0])
-        tab_num += 1
 
 def p_step(p):
     "step : stmnt"
@@ -230,55 +231,33 @@ def p_stmnt(p):
                 | LBRACE sequence RBRACE
                 | PRINTM LPAREN name RPAREN
                 | expr"""
-    global tab_num
     if len(p) == 2:
         p[0] = "stmnt", p[1]
-        print_indent(tab_num)
-        print(p[0][0])
-        tab_num += 1
     elif len(p) == 4:
         if p[1] == "if" or "do":
             p[0] = "stmnt", p[1], p[2]
-            print_indent(tab_num)
-            print(p[0][0])
-            tab_num += 1
         elif p[1] == "(":
             p[0] = "stmnt", p[2]
-            print_indent(tab_num)
-            print(p[0][0])
-            tab_num += 1
     elif len(p)== 5:
         p[0] = "stmnt", p[1], p[3]
-        print_indent(tab_num)
-        print(p[0][0])
-        tab_num += 1
 
 def p_options(p):
     """options  : COLONS sequence
                 | COLONS sequence options"""
-    global tab_num
     if len(p) == 3:
         p[0] = "options", p[2]
-        print_indent(tab_num)
-        print(p[0][0])
-        tab_num += 1
     elif len(p) == 4:
         p[0] = "options", p[2], p[3]
-        print_indent(tab_num)
-        print(p[0][0])
-        tab_num += 1
-
 
 def p_mtype(p):
     "mtype : MTYPE LBRACE names RBRACE"
     global tab_num
     p[0] = "mtype", p[1]
-    print(p[0], p[1], p[2], p[3], p[4])
+    print_p(p)
 
 def p_names(p):
     """names    : name
                 | name COMMA names"""
-    global tab_num
     if len(p) == 2:
         p[0] = p[1]
     elif len(p) == 4:
@@ -288,23 +267,13 @@ def p_any_expr(p):
     """any_expr : LPAREN any_expr RPAREN
                 | const
                 | any_expr binarop any_expr"""
-    global tab_num
     if len(p) == 2:
         p[0] = "any_expr", p[1]
-        print_indent(tab_num)
-        print(p[0][0])
-        tab_num += 1
     elif len(p) == 4:
         if p[1] == "(":
             p[0] = "anyexpr", p[2]
-            print_indent(tab_num)
-            print(p[0][0])
-            tab_num += 1
         elif p[2][0] == "binarop":
             p[0] = "any_expr", p[1], p[2], p[3]
-            print_indent(tab_num)
-            print(p[0][0])
-            tab_num += 1
         # match p[2]:
         #         case "PLUS":
         #             p[0] = p[1] + p[3]
@@ -362,17 +331,12 @@ def p_binarop(p):
 #                     | LSHIFT
 #                     | RSHIFT
 #                     | andor"""
-    global tab_num
     p[0] = "binarop", p[1]
-    print_indent(tab_num)
-    print(p[0])
-    tab_num = 1
 
 def p_expr(p):
     """expr : any_expr
             | LPAREN expr RPAREN
     """
-    global tab_num
     if len(p) == 2:
         p[0] = p[1]
     elif len(p) == 4:
@@ -437,7 +401,7 @@ parser = yacc.yacc()
 # parser = yacc.yacc()
 
 def yacc_test():
-    f = open('test.pml', 'r')
+    f = open('test2.pml', 'r')
     data = f.read()
     f.close()
 
