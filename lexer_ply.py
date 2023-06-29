@@ -5,26 +5,6 @@ import queue
 ############################
 # lexer
 ############################
-
-#List of reserved words
-# reserved = {
-#     'proctype': 'PROCTYPE',
-#     'active':'ACTIVE',
-#     'true':'TRUE',
-#     'false':'FALSE',
-#     'skip':'SKIP',
-#     'proctype':'PROCTYPE',
-#     'if':'IF',
-#     'fi':'FI',
-#     'do':'DO',
-#     'od':'OD',
-#     'atomic':'ATOMIC',
-#     'd_step':'D_STEP',
-#     'int':'INT',
-#     'printm':'PRINTM',
-#     'mtype' : 'MTYPE'
-# }
-
 reserved = {
     "proctype":"PROCTYPE",
     "init":"INIT",
@@ -84,7 +64,6 @@ reserved = {
 
 # List of token names
 tokens = [
-    # "ALPHA",
     "ARROW",
     "NUMBER",
     "LPAREN", #(
@@ -239,6 +218,16 @@ def nesttuple_putqueue(p):
     else:
         q.put(p, block=False)
 
+# def nesttuple_putqueue(p):
+#     i = 0
+#     tupleindex_lst = []
+#     while i > len(p):
+#         if type(p[i]) is tuple:
+#             i.append(tupleindex_lst)
+#         else:
+#             pass
+
+
 def print_p(p):
     i = 1
     while i < len(p):
@@ -254,10 +243,12 @@ def print_p(p):
                 tab_num += 1
         i += 1
 
+def printany(aaa):
+    print(aaa)
 
 precedence = (
     ("right", "EQUAL"),
-    ("right", "ARROW"),
+    ("right", "ARROW", "SEMI"),
     ("left", "LOR"),
     ("left", "LAND"),
     ("left", "OR"),
@@ -275,7 +266,6 @@ precedence = (
 
 start = "spec"
 
-# tab_num = 0
 q = queue.Queue()
 
 def p_spec(p):
@@ -316,6 +306,8 @@ def p_proctype(p):
                 | active PROCTYPE name LPAREN decl_lst RPAREN priority enabler LBRACE sequence RBRACE"""
     p[0] = "proctype"
     print_p(p)
+
+
 def p_init(p):
     """init : INIT LBRACE sequence RBRACE
             | INIT priority LBRACE sequence RBRACE"""
@@ -343,14 +335,31 @@ def p_mtype(p):
     p[0] = "mtype"
     print_p(p)
 
+# def p_decl_lst(p):
+#     """decl_lst     : one_decl
+#                     | one_decl SEMI decl_lst"""
+#     if len(p) == 2:
+#         p[0] = "decl_lst"
+#     else:
+#         p[0] = "decl_lst"
+#     print_p(p)
+
 def p_decl_lst(p):
     """decl_lst     : one_decl
-                    | one_decl SEMI decl_lst"""
+                    | one_decl one_decls"""
     if len(p) == 2:
-        p[0] = "decl_lst"
+        p[0] = "decl_lst", p[1]
     else:
-        p[0] = "decl_lst"
-    print_p(p)
+        p[0] = "decl_lst", p[1], p[2]
+    # print_p(p)
+
+def p_one_decls(p):
+    """one_decls    : SEMI one_decl
+                    | SEMI one_decl one_decls"""
+    if len(p) == 3:
+        p[0] = "one_decls", p[2]
+    else:
+        p[0] = "one_decls", p[2], p[3]
 
 def p_one_decl(p):
     """one_decl : typename ivar
@@ -408,18 +417,36 @@ def p_visible(p):
                 | SHOW"""
     p[0] = p[1]
 
+# def p_sequence(p):
+#     """sequence     : step
+#                     | step SEMI sequence
+#                     | step ARROW sequence"""
+#     if len(p) == 2:
+#         p[0] = "sequence", p[1]
+#     elif len(p) == 4:
+#         p[0] = "sequence", p[1], p[3]
+
 def p_sequence(p):
     """sequence     : step
-                    | step SEMI sequence
-                    | step ARROW sequence"""
+                    | step steps"""
     if len(p) == 2:
         p[0] = "sequence", p[1]
-    elif len(p) == 4:
-        p[0] = "sequence", p[1], p[3]
+    elif len(p) == 3:
+        p[0] = "sequence", p[1], p[2]
+
+def p_steps(p):
+    """steps    : SEMI step
+                | SEMI step steps
+                | ARROW step
+                | ARROW step steps"""
+    if len(p) == 3:
+        p[0] = "steps", p[2]
+    else:
+        p[0] = "steps", p[2], p[3]
 
 def p_step(p):
     """step : stmnt
-            | decl_lst
+            | one_decl
             | XR varref
             | XR varref varrefs
             | XS varref
