@@ -10,17 +10,22 @@ pop(Stack) ->
             {H, T}
     end.
 
+%スタックに積んであったものを全部木にする
 stackback(Tree, []) ->
     Tree;
+    % {ok ,File} = file:open("result_tree.txt", write),
+    % io:format(File, "~p~n", [Tree]),
+    % file:close(File);
 stackback(Tree, Stack) ->
     {H, T} = pop(Stack),
     NewTree = genTree:make_node(H, Tree),
     stackback(NewTree, T).
 
-
+%子のタプルが入ったリストを受け取ってその要素それぞれをloopに渡して木を作り子の木のリストを作る
 listloop([], List, Stack) ->
     List;
 listloop(ChildList, List, Stack) ->
+    io:format("~p~n", [hd(ChildList)]),
     case hd(ChildList) of
         {T} ->
             Tree = genTree:make_node(T, []),
@@ -37,8 +42,20 @@ listloop(ChildList, List, Stack) ->
         {NT, Tuple} ->
             Tree = loop({NT, Tuple}, Stack),
             Children = [Tree | List],
+            listloop(tl(ChildList), Children, []);
+        %木のリストがあった場合は下請けへ
+        [H|T] ->
+            TreeList = treelistloop([], [H|T], Stack),
+            Children = [TreeList | List],
             listloop(tl(ChildList), Children, [])
     end.
+
+treelistloop(TreeList, [], _) ->
+    lists:reverse(TreeList);
+treelistloop(TreeList, List, Stack) ->
+    Tree = loop(hd(List), Stack),
+    NewTreeList = [Tree | TreeList],
+    treelistloop(NewTreeList, tl(List), Stack).
 
 start(File) ->
     {ok, F} = file:open(File, read),
@@ -48,18 +65,25 @@ start(File) ->
     loop(Tuple, []).
 
 start2(Tuple) ->
-    loop(Tuple, []).
+    Tree = loop(Tuple, []),
+    {ok ,File} = file:open("result_tree.txt", write),
+    io:format(File, "~p~n", [Tree]),
+    file:close(File).
 
+%Stackに木の親を積んでおいて子の木を下請けに作らせる
+%{非終端,{終端}}であれば最後まで子供を作り終えたのでスタックを順にpopしていく
 loop({NT, {T}}, Stack) ->
     io:format("AA~n"),
     Tree = genTree:make_node(NT, T),
     stackback(Tree, Stack);
+%{非終端,[リスト]}であればlistloopにリストの中の子の木をそれぞれ作ってもらう
 loop({NT, [H|T]}, Stack) ->
     io:format("CC~n"),
     Children = listloop([H|T], [], []),
     Children2 = lists:reverse(Children),
     Tree = genTree:make_node(NT, Children2),
     stackback(Tree, Stack);
+%{非終端,{}}であれば単に親をスタックに積んで子のタプルをloopへ
 loop({NT, Tuple}, Stack) ->
     io:format("BB~n"),
     NewStack = push(Stack, NT),
