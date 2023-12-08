@@ -297,13 +297,14 @@ def p_module(p):
 
 def p_proctype(p):
     """proctype : activeO PROCTYPE name LPAREN decl_lstO RPAREN priorityO enablerO LBRACE sequence RBRACE"""
-    p[0] = ("proctype", set_p(p))
+    # p[0] = ("proctype", set_p(p))
+    p[0] = ("proctype", [p[1], p[3], p[5], p[7], p[8], p[10]])
 
 def p_activeO(p):
     """activeO  :
                 | active"""
     if len(p) == 1:
-        p[0] = None
+        p[0] = ("none",)
     else:
         p[0] = p[1]
 
@@ -311,14 +312,14 @@ def p_decl_lstO(p):
     """decl_lstO :
                 | decl_lst"""
     if len(p) == 1:
-        p[0] = None
+        p[0] = ("none",)
     else:
         p[0] = p[1]
 def p_priorityO(p):
     """priorityO    :
                     | priority"""
     if len(p) == 1:
-        p[0] = None
+        p[0] = ("none",)
     else:
         p[0] = p[1]
 
@@ -326,7 +327,7 @@ def p_enablerO(p):
     """enablerO :
                 | enabler"""
     if len(p) == 1:
-        p[0] = None
+        p[0] = ("none",)
     else:
         p[0] = p[1]
 
@@ -355,7 +356,7 @@ def p_equalO(p):
     """equalO    :
                 | EQUAL"""
     if len(p) == 1:
-        p[0] = None
+        p[0] = ("none",)
     if len(p) == 2:
         p[0] = p[1]
 
@@ -375,13 +376,13 @@ def p_one_decl(p):
     """one_decl : visibleO typename ivar ivars"""
                 # | visible unsigned_decl
                 # | unsigned_decl
-    p[0] = [("one_decl", p[1], p[2], p[3] + p[4])]
+    p[0] = [("one_decl", [p[1], p[2], p[3] + p[4]])]
 
 def p_visibleO(p):
     """visibleO  :
                 | visible"""
     if len(p) == 1:
-        p[0] = None
+        p[0] = ("none",)
     else:
         p[0] = p[1]
 
@@ -415,7 +416,7 @@ def p_activeopt(p):
     """activeopt    :
                     | LBRACKET const RBRACKET"""
     if len(p) == 1:
-        p[0] = None
+        p[0] = ("none",)
     else:
         p[0] = p[2]
 
@@ -456,29 +457,29 @@ def p_step(p):
             | XR varref varrefs
             | XS varref varrefs"""
     if len(p) == 2:                 # decl_lst
-        p[0] = [("step", p[1])]
+        p[0] = [("step2", p[1])]
     elif len(p) == 3:               # stmnt stepopt
-        p[0] = [("step", [p[1], p[2]])]
+        p[0] = [("step1", [p[1], p[2]])]
     elif len(p) == 4:               # XR/XS varref varrefs
-        p[0] = [("step", [(p[1],), p[2] + p[3]])]
+        p[0] = [("step3", [(p[1],), p[2] + p[3]])]
 
 def p_stepopt(p):
     """stepopt  :
                 | UNLESS stmnt"""
     if len(p) == 1:
-        p[0] = None
+        p[0] = ("none",)
     else:
         p[0] = p[2]
 
 def p_guard(p):
-    """guard    : stmnt2 guardopt"""
+    """guard    : stmnt4guard guardopt"""
     p[0] = ("guard", set_p(p))
 
 def p_guardopt(p):
     """guardopt :
                 | UNLESS stmnt"""
     if len(p) == 1:
-        p[0] = None
+        p[0] = ("none",)
     else:
         p[0] = p[2]
 
@@ -498,14 +499,14 @@ def p_varrefopt1(p):
     """varrefopt1   :
                     | LBRACKET any_expr RBRACKET"""
     if len(p) == 1:
-        p[0] = None
+        p[0] = ("none",)
     else:
         p[0] = (p[2])
 def p_varrefopt2(p):
     """varrefopt2   :
                     | PERIOD varref"""
     if len(p) == 1:
-        p[0] = None
+        p[0] = ("none",)
     else:
         p[0] = p[2]
 
@@ -517,7 +518,7 @@ def p_ivaropt1(p):
     """ivaropt1  :
                 | LBRACKET const RBRACKET"""
     if len(p) == 1:
-        p[0] = None
+        p[0] = ("none",)
     else:
         p[0] = p[2]
 
@@ -526,7 +527,7 @@ def p_ivaropt2(p):
                 | EQUAL any_expr
                 | EQUAL ch_init"""
     if len(p) == 1:
-        p[0] = None
+        p[0] = ("none",)
     else:
         p[0] = p[2]
 
@@ -545,31 +546,49 @@ def p_typenames(p):
 def p_send(p):
     """send : varref LNOT send_args
             | varref TX2 send_args"""
-    p[0] = ("send", set_p(p))
+    # p[0] = ("send", set_p(p))
+    if p[2] == "!":
+        p[0] = ("send1", [p[1], p[3]])
+    elif p[2] == "!!":
+        p[0] = ("send2", [p[1], p[3]])
 
 def p_receive(p):
     """receive  : varref RCV recv_args
                 | varref R_RCV recv_args
                 | varref RCV LT recv_args GT
                 | varref R_RCV LT recv_args GT"""
-    p[0] = ("receive", set_p(p))
+    # p[0] = ("receive", set_p(p))
+    if len(p) == 4:
+        if p[2] == "?":
+            p[0] = ("receive1", [p[1], p[3]])
+        elif p[2] == "??":
+            p[0] = ("receive2", [p[1], p[3]])
+    elif len(p) == 6:
+        if p[2] == "?":
+            p[0] = ("receive3", [p[1], p[4]])
+        elif p[2] == "??":
+            p[0] = ("receive4", [p[1], p[4]])
 
 def p_poll(p):
     """poll : varref RCV LBRACKET recv_args RBRACKET
             | varref R_RCV LBRACKET recv_args RBRACKET"""
-    p[0] = ("poll", [p[1], p[2], p[4]])
+    # p[0] = ("poll", [p[1], p[2], p[4]])
+    if p[2] == "?":
+        p[0] = ("poll", [p[1], p[4]])
+    elif p[2] == "??":
+        p[0] = ("poll2", [p[1], p[4]])
 
 def p_send_args(p):
     """send_args    : arg_lst
                     | any_expr LPAREN arg_lst RPAREN"""
     if len(p) == 2:
-        p[0] = "send_args", p[1]
+        p[0] = "send_args1", p[1]
     else:
-        p[0] = ("send_args", [p[1], p[3]])
+        p[0] = ("send_args2", [p[1], p[3]])
 
 def p_arg_lst(p):
     """arg_lst  : any_expr any_exprs"""
-    p[0] = ("arg_lst", p[1] + p[2])
+    p[0] = p[1] + p[2]
 
 def p_anyexprs(p):
     """any_exprs    :
@@ -583,9 +602,9 @@ def p_recv_args(p):
     """recv_args    : recv_arg recv_argss
                     | recv_arg LPAREN recv_args RPAREN"""
     if len(p) == 3:
-        p[0] = ("recv_args",[p[1] + p[2]])
+        p[0] = ("recv_args1",[p[1] + p[2]])
     else:
-        p[0] = ("recv_args", [p[1], p[3]])
+        p[0] = ("recv_args2", [p[1], p[3]])
 
 def p_recv_argss(p):
     """recv_argss   :
@@ -600,19 +619,19 @@ def p_recv_arg(p):
                 | EVAL LPAREN varref RPAREN
                 | minusO const"""
     if len(p) == 2:
-        p[0] = [("recv_arg", p[1])]
+        p[0] = [("recv_arg1", p[1])]
     elif len(p) == 3:
-        p[0] = [("recv_arg", [p[1], p[2]])]
+        p[0] = [("recv_arg3", [p[1], p[2]])]
     else:
-        p[0] = [("recv_arg", [(p[1],), p[3]])]
+        p[0] = [("recv_arg2", [(p[1],), p[3]])]
 
 def p_minusO(p):
     """minusO   :
                 | MINUS"""
     if len(p) == 1:
-        p[0] = None
+        p[0] = ("none",)
     else:
-        p[0] = p[1]
+        p[0] = (p[1],)
 
 def p_assign(p):
     """assign   : varref EQUAL any_expr
@@ -622,7 +641,13 @@ def p_assign(p):
     #     p[0] = "assign", p[1], p[2]
     # else:
     #     p[0] = "assign", p[1], p[3]
-    p[0] = ("assign", set_p(p))
+    # p[0] = ("assign", set_p(p))
+    if p[2] == "=":
+        p[0] = ("assign1", [p[1], p[3]])
+    elif p[2] == "++":
+        p[0] = ("assign2", [p[1]])
+    elif p[2] == "--":
+        p[0] = ("assign3", [p[1]])
 
 def p_stmnt(p):
     """stmnt    : IF options FI
@@ -643,62 +668,79 @@ def p_stmnt(p):
                 | PRINTF LPAREN STRING stmntopt RPAREN
                 | ASSERT expr
                 | expr"""
-    if len(p) == 2:                     # expr or send or receive or assign or ELSE or BREAK
-        if type(p[1]) == str:
-            p[0] = "stmnt", (p[1],)
+    if len(p) == 2:                     # ELSE or BREAK
+        if p[1] == "else":
+            p[0] = "stmnt9", (p[1],)
+        elif p[1] == "break":
+            p[0] = "stmnt10", (p[1],)
         else:
-            p[0] = "stmnt", p[1]
+            p[0] = "stmnt8", p[1]               #send or receive or assign or expr
     elif len(p) == 3:    #GOTO ASSERT
-        p[0] = ("stmnt", [p[1], p[2]])
-    elif len(p) == 4:                       # IF DO ,name COLON stmnt, LBTACE sequence RBRACE
-        if p[1] == "if" or "do":
-            p[0] = ("stmnt", [(p[1],), p[2]])
+        if p[1] == "goto":
+            p[0] = ("stmnt11", p[2])
+        elif p[1] == "assert":
+            p[0] = ("stmnt15", p[2])
+    elif len(p) == 4:                       # IF DO ,name COLON stmnt, LBRACE sequence RBRACE
+        if p[1] == "if":
+            p[0] = ("stmnt1", p[2])
+        elif p[1] == "do":
+            p[0] = ("stmnt2", p[2])
         elif p[1] == "(":
-            p[0] = ("stmnt", p[2])
+            p[0] = ("stmnt7", p[2])
         else:
-            p[0] = ("stmnt", [p[1], p[3]])
+            p[0] = ("stmnt12", [p[1], p[3]])
     elif len(p)== 5:                    # ATOMIC D_STEP SELECT PRINTM
-        p[0] = ("stmnt", [(p[1],), p[3]])
+        if p[1] == "atomic":
+            p[0] = ("stmnt4", p[3])
+        elif p[1] == "d_step":
+            p[0] = ("stmnt5", p[3])
+        elif p[1] == "select":
+            p[0] = ("stmnt6", p[3])
+        elif p[1] == "printm":
+            p[0] = ("stmnt13", p[3])
     elif len(p) == 6:                   #PRINTF
-        p[0] = "stmnt", p[1], p[3], p[4]
+        p[0] = ("stmnt14", [(p[3],), p[4]])
     # elif len(p) == 7:
         # p[0] = ("stmnt", [(p[1],), (p[3],), p[5]])
     elif len(p) == 8:                                   # FOR
-        p[0] = ("stmnt", [(p[1],), p[3], p[6]])
+        p[0] = ("stmnt3", [p[3], p[6]])
 
 def p_stmntopt(p):
     """stmntopt :
-                | COMMA expr"""
+                | COMMA arg_lst"""
     if len(p) == 1:
-        p[0] = None
+        p[0] = ("none",)
     else:
         p[0] = p[2]
 
-def p_stmnt2(p):
-    """stmnt2   : send
+def p_stmnt4guard(p):
+    """stmnt4guard : send
                 | receive
                 | ELSE
-                | BREAK
                 | expr"""
-    if len(p) == 2:
-        if type(p[1]) == str:
-            p[0] = "stmnt", (p[1],)
-        else:
-            p[0] = "stmnt", p[1]
+    # if len(p) == 2:
+    #     if type(p[1]) == str:
+    #         p[0] = "stmnt", (p[1],)
+    #     else:
+    #         p[0] = "stmnt", p[1]
+    if p[1] == "else":
+        p[0] = ("stmnt4guard1", (p[1],))
+    else:
+        p[0] = ("stmnt4guard2", p[1])
 
 
 def p_range(p):
     """range    : name COLON any_expr PERIODS any_expr
                 | name IN name"""
-    # if len(p) == 4:
-    #     p[0] = "range", p[1], p[3]
-    # else:
-    #     p[0] = "range", p[1], p[3], p[5]
-    p[0] = ("range", set_p(p))
+    if len(p) == 4:
+        p[0] = ("range2", [p[1], p[3]])
+    else:
+        p[0] = ("range1", [p[1], p[3], p[5]])
+    # p[0] = ("range", set_p(p)
 
 def p_options(p):
     """options  : COLONS optionseq optionseqs"""
-    p[0] = ("options", p[2] + p[3])
+    p[0] = p[2] + p[3]
 
 def p_optionseqs(p):
     """optionseqs   :
@@ -761,46 +803,58 @@ def p_any_expr(p):
                 | GET_PRIORITY LPAREN expr RPAREN
                 | SET_PRIORITY LPAREN expr COMMA expr RPAREN"""
     if len(p) == 2:                             # varref or const or TIMEOUT or NP_ or poll
-        if type(p[1]) == str:
-            p[0] = ["any_expr", (p[1],)]
+        if p[1] == "timeout":
+            p[0] = [("any_expr7", (p[1],))]
+        elif(p[1] == "np_"):
+            p[0] = [("any_expr8", (p[1],))]
         else:
-            p[0] = ["any_expr", p[1]]
+            p[0] = [("any_expr6", p[1])]
     elif len(p) == 3:                           # unarop any_expr
-        p[0] = [("any_expr", [p[1], p[2]])]
+        p[0] = [("any_expr3", [p[1], p[2]])]
     elif len(p) == 4:                           # LPAREN any_expr RPAREN, any_expr binarop any_expr
-        p[0] = [("any_expr", [p[1], p[2], p[3]])]
-    elif len(p) == 5:                           # LEN LPAREN varref RPAREN, ENABLED LPAREN any_expr RPAREN, PC_VALUE LPAREN any_expr RPAREN, GET_PRIORITY LPAREN expr RPAREN
-        if p[1] == "get_priority":
-            p[0] = [("get_priority", [(p[1],), p[3]])]
+        if p[1] == "(":
+            p[0] = [("any_expr1", p[2])]
         else:
-            p[0] = [("any_expr", [(p[1],), p[3]])]
+            p[0] = [("any_expr2", [p[1], p[2], p[3]])]
+    elif len(p) == 5:                           # LEN LPAREN varref RPAREN, ENABLED LPAREN any_expr RPAREN, PC_VALUE LPAREN any_expr RPAREN, GET_PRIORITY LPAREN expr RPAREN
+        if p[1] == "len":
+            p[0] = [("any_expr5", p[3])]
+        elif p[1] == "enabled":
+            p[0] = [("any_expr9", p[3])]
+        elif p[1] == "pc_value":
+            p[0] = [("any_expr10", p[3])]
+        elif p[1] == "get_priority":
+            p[0] = [("any_expr13", p[3])]
     elif len(p) == 8:                           # LPAREN any_expr ARROW any_expr COLON any_expr RPAREN
-        p[0] = [("any_expr", [p[2], (p[3],), p[4], (p[5],), p[6]])]
+        p[0] = [("any_expr4", [p[2], p[4], p[6]])]
     else:
         if p[1] == "run":
-            p[0] = [("any_expr", [(p[1],), p[2], p[4], p[6]])]
+            p[0] = [("any_expr12", [p[2], p[4], p[6]])]
         elif p[1] == "set_priority":
-            p[0] = [("any_expr", [(p[1],), p[3], p[5]])]
+            p[0] = [("any_expr14", [p[3], p[5]])]
         else:
-            p[0] = [("any_expr", [p[1], p[3], (p[5],), p[6]])]
+            p[0] = [("any_expr11", [p[1], p[3], p[6]])]
 
 def p_arg_lstO(p):
     """arg_lstO :
                 | arg_lst"""
     if len(p) == 1:
-        p[0] = None
+        p[0] = ("none",)
     else:
         p[0] = p[1]
 
 def p_expr(p):
     """expr : any_expr
-            | chanpoll LPAREN varref RPAREN
             | LPAREN expr RPAREN
-            | expr andor expr"""
+            | expr andor expr
+            | chanpoll LPAREN varref RPAREN"""
     if len(p) == 2:
-        p[0] = "expr", p[1]
+        p[0] = ("expr1", p[1])
     elif len(p) == 4:
-        p[0] = set_p(p)
+        if p[1] == "(":
+            p[0] = ("expr2", p[2])
+        else:
+            p[0] = ("expr3", [p[1], p[2], p[3]])
     else:
         p[0] = ("expr4", [p[1], p[3]])
         # p[0] = ("expr", set_p(p))
