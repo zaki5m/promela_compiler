@@ -1,0 +1,1 @@
+mtype = {input_money, push_buybtn, push_changebtn}

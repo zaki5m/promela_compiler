@@ -1,0 +1,1 @@
+typedef asdfa { int aaa=0}
