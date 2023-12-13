@@ -14,6 +14,7 @@
     * Makefile
     * convartTree.erl
     * pml2cs.erl
+    * setmanager.erl
 * testpmlはparserのテストファイルが入ってます
 
 
