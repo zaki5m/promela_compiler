@@ -1,5 +1,5 @@
 -module(my_utility).
--export([push/2, pop/1, genedgeStack/5,listloop/3, genedge/4, addloc/2, addact/2]).
+-export([push/2, pop/1, genedgeStack/6,listloop/3, genedge/4, addloc/2, addact/2]).
 -include("record.hrl").
 
 push(Stack, Value) ->
@@ -13,31 +13,45 @@ pop(Stack) ->
 
 % 第5引数の0/1はBreakFlagが１のやつがスタックの中にあったかどうかで切り替わる
 % あったばあいはbreakしたあとのIを返す
-genedgeStack([], _, _, I, 0) ->
+genedgeStack([], _, _, I, 0, _) ->
     I;
-genedgeStack([], _, _, I, 1) ->
+genedgeStack([], _, _, I, 1, 0) ->
     I + 1;
-genedgeStack(Stack, Target, Pid, I, 0) ->
+genedgeStack([], _, _, I, 1, 1) ->
+    I;
+genedgeStack(Stack, Target, Pid, I, 0, SeqFlag) ->
     {{Source, Act, BreakFlag},T} = pop(Stack),
     addact(Act, Pid),
     case BreakFlag of
         0 ->
             genedge(Source, Act, Target, Pid),
-            genedgeStack(T, Target, Pid, I, 0);
+            genedgeStack(T, Target, Pid, I, 0, SeqFlag);
         1 ->
-            genedge(Source, Act, I+1, Pid),
-            genedgeStack(T, Target, Pid, I, 1)
+            case SeqFlag of
+                0 ->
+                    genedge(Source, Act, I+1, Pid),
+                    genedgeStack(T, Target, Pid, I, 1, SeqFlag);
+                1 ->
+                    genedge(Source, Act, Target, Pid),
+                    genedgeStack(T, Target, Pid, I, 1, SeqFlag)
+            end
     end;
-genedgeStack(Stack, Target, Pid, I, 1) ->
+genedgeStack(Stack, Target, Pid, I, 1, SeqFlag) ->
     {{Source, Act, BreakFlag},T} = pop(Stack),
     addact(Act, Pid),
     case BreakFlag of
         0 ->
             genedge(Source, Act, Target, Pid),
-            genedgeStack(T, Target, Pid, I, 1);
+            genedgeStack(T, Target, Pid, I, 1, SeqFlag);
         1 ->
-            genedge(Source, Act, I+1, Pid),
-            genedgeStack(T, Target, Pid, I, 1)
+            case SeqFlag of
+                0 ->
+                    genedge(Source, Act, I+1, Pid),
+                    genedgeStack(T, Target, Pid, I, 1, SeqFlag);
+                1 ->
+                    genedge(Source, Act, Target, Pid),
+                    genedgeStack(T, Target, Pid, I, 1, SeqFlag)
+            end
     end.
     % case Stack of
     %     [_|[]] ->
