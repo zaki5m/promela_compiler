@@ -1,5 +1,5 @@
 -module(pml2cs).
--export([start/1, sequence/5]).
+-export([start/1, sequence/6]).
 -import(lists, [map/2]).
 -include("record.hrl").
 
@@ -43,14 +43,20 @@ genPG(Proc, Pid) ->
     end,
     Pid ! {self(), fin}.
 
-% List([step]) -> Nat -> record -> pid -> Nat -> tuple
-%stepのリストを受け取り各stepをstepを解析する関数へ渡し戻り値によって枝を次のLocにはるか判断する
-sequence([], _, _, _, I) ->
+% List([step]) -> Nat -> record -> pid -> Nat -> atom -> tuple
+% stepのリストを受け取り各stepをstepを解析する関数へ渡し戻り値によって枝を次のLocにはるか判断する
+% IfFlagがifdayoの場合はifから呼ばれたので最後は必ずbreakするようにする
+sequence([], _, _, _, I, ifdayo) ->
+    {fin, I, break};
+sequence([], _, _, _, I, _) ->
     {fin, I, nonbreak};
-sequence([Step|Steps], Source, Guard, Pid, I) ->
+sequence([Step|Steps], Source, Guard, Pid, I, IfFlag) ->
     my_utility:addloc(I, Pid),
     {StepAtom, Result} = step(Step, Pid, I),
     case StepAtom of
+        stmnt1 ->       %if
+            {NewI, Flag} = Result,
+            sequence(Steps, NewI, true, Pid, NewI, IfFlag);
         stmnt2 ->       %do
             {NewI, Flag} = Result,
             %doの中にbreakがない場合は無限ループするのでこれ以降のstepに枝をはらない
@@ -59,7 +65,7 @@ sequence([Step|Steps], Source, Guard, Pid, I) ->
                     {notfin, NewI, nonbreak};
                 break ->
                     % my_utility:genedge(I, {true,skip}, NewI, Pid),
-                    sequence(Steps, NewI, true, Pid, NewI)
+                    sequence(Steps, NewI, true, Pid, NewI, IfFlag)
             end;
         stmnt10 ->                  %break
             Act = Result,
@@ -72,13 +78,13 @@ sequence([Step|Steps], Source, Guard, Pid, I) ->
             my_utility:addact({Guard,Act}, Pid),
             NewI = I + 1,
             my_utility:genedge(Source, {Guard,Act}, NewI, Pid),
-            sequence(Steps, NewI, true, Pid, NewI);
+            sequence(Steps, NewI, true, Pid, NewI, IfFlag);
         one_decl ->
             Act = Result,
             my_utility:addact({Guard,Act}, Pid),
             NewI = I + 1,
             my_utility:genedge(Source, {Guard,Act}, NewI, Pid),
-            sequence(Steps, NewI, true, Pid, NewI)
+            sequence(Steps, NewI, true, Pid, NewI, IfFlag)
     end.
 
 %stepを解析する関数,step1ならstmntを解析する関数へ，step2ならone_declを解析する関数へ
@@ -100,11 +106,13 @@ one_decl([One_decl], Pid, I) ->
     {one_decl, Act}.
 
 %tuple(tree record) -> tuple({atom, Result})
-stmnt(Stmnt, Pid, I_) when Stmnt#tree.value == stmnt1->      %stmnt1: if
-    io:format("stmnt1~n");
+stmnt(Stmnt, Pid, I) when Stmnt#tree.value == stmnt1->      %stmnt1: if
+    io:format("stmnt1~n"),
+    Result = options(Stmnt#tree.children, I, [], Pid, I, break, ifdayo),
+    {stmnt1, Result};
 stmnt(Stmnt, Pid, I) when Stmnt#tree.value == stmnt2 ->     %stmnt2: do
     io:format("stmnt2~n"),
-    Result = options(Stmnt#tree.children,I, [], Pid, I, nonbreak),    %Result -> {NewI, BreakFlag}
+    Result = options(Stmnt#tree.children,I, [], Pid, I, nonbreak, dodayo),    %Result -> {NewI, BreakFlag}
     {stmnt2, Result};
 stmnt(Stmnt, Pid, I) when Stmnt#tree.value == stmnt4 ->     %stmnt4: atomic
     io:format("stmnt4~n");
@@ -124,30 +132,31 @@ stmnt4guard(Stmnt4guard, Pid, I) when Stmnt4guard#tree.value == stmnt4guard1->
 stmnt4guard(Stmnt4guard, Pid, I) when Stmnt4guard#tree.value == stmnt4guard2->
     Stmnt4guard#tree.children.
 
-% list([optionseq]) -> tuple({optionの中で進めた分だけインクリメントしたI, Flag})
+% list([optionseq]) -> Nat -> list -> pid -> Nat -> atom -> atom -> tuple({optionの中で進めた分だけインクリメントしたI, Flag})
 % optionseqの下の[step]の最後のstepの遷移先をスタックにつんで最後にスタックの中身のエッジをはる(Targetはdoの繰り返し先)
 % 第五引数のFlagはbreakを含んでいるかどうか
-options([], Source, Stack, Pid, I, Flag) ->
+% IfFlagはこのoption関数が　stmnt関数内のifのケースから呼ばれたかどうか
+options([], Source, Stack, Pid, I, Flag, _) ->
     NewI = my_utility:genedgeStack(Stack, Source, Pid, I),
     {NewI, Flag};
-options([Optionseq|Optionseqs], Source, Stack, Pid, I, Flag) ->               %breakの場合はスタックに積まずに再帰
-    Result = optionseq(Optionseq, Source, Pid, I),
+options([Optionseq|Optionseqs], Source, Stack, Pid, I, Flag, IfFlag) ->               %breakの場合はスタックに積まずに再帰
+    Result = optionseq(Optionseq, Source, Pid, I, IfFlag),
     {_, NewI, BreakFlag} = Result,
     NewStack = my_utility:push(Stack, {NewI, BreakFlag}),
     io:format("Flag:~p~n", [Flag]),
     case Flag of
         nonbreak ->
-            options(Optionseqs, Source, NewStack, Pid, NewI, BreakFlag);
+            options(Optionseqs, Source, NewStack, Pid, NewI, BreakFlag, IfFlag);
         break ->
-            options(Optionseqs, Source, NewStack, Pid, NewI, Flag)
+            options(Optionseqs, Source, NewStack, Pid, NewI, Flag, IfFlag)
     end.
 
-% record -> Nat -> pid -> Nat -> tuple
+% record -> Nat -> pid -> Nat　-> atom -> tuple
 % [step]の最後の要素のstepのActを返す
-optionseq(Optionseq, Source, Pid, I) ->
+optionseq(Optionseq, Source, Pid, I, IfFlag) ->
     [GuardTree|StepList] = Optionseq#tree.children,
     Guard = guard(GuardTree, Pid, I),
-    Result = sequence(hd(StepList), Source, Guard, Pid, I),     %Result->{fin, NewI, BreakFlag}
+    Result = sequence(hd(StepList), Source, Guard, Pid, I, IfFlag),     %Result->{fin, NewI, BreakFlag}
     Result.
 
 guard(GuardTree, Pid, I) ->

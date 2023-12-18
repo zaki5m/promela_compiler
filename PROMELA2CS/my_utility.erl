@@ -11,16 +11,18 @@ pop(Stack) ->
             {H, T}
     end.
 
+% list -> Nat -> pid -> Nat -> Nat
+% スタックに積まれたstepの枝をはる関数，breakの場合は一個すすめbreakがない場合はTargetで指定したLocに戻る
 genedgeStack([], _, _, I) ->
     I + 1;
 genedgeStack(Stack, Target, Pid, I) ->
     {{Source, BreakFlag}, T} = pop(Stack),
     io:format("NewI:~pFlag:~p~n", [Source, BreakFlag]),
     case BreakFlag of
-        0 ->
+        nonbreak ->
             genedge(Source, {true,skip}, Target, Pid),
             genedgeStack(T, Target, Pid, I);
-        1 ->
+        break ->
             genedge(Source, {true,skip}, I+1, Pid),
             genedgeStack(T, Target, Pid, I)
     end.
@@ -29,7 +31,7 @@ genedgeStack(Stack, Target, Pid, I) ->
 listloop([], _, I, Fin) ->
     {Fin, I};
 listloop([H|[]], Pid, I, Fin) ->
-    {NewFin, NewI, _} = pml2cs:sequence(H, I, true, Pid, I),
+    {NewFin, NewI, _} = pml2cs:sequence(H, I, true, Pid, I, firstcall),
     listloop([], Pid, NewI, NewFin);
 listloop([H|T], Pid, I, Fin) ->
     io:format("H:~p~n", [H]),
