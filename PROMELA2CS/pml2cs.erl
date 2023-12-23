@@ -8,40 +8,84 @@ start(Tree) ->
 
 spec(Tree) ->
     Module = Tree#tree.children,
-    module(Module).
+    Pid = spawn(fun setmanager:start/0),
+    module(Module, Pid),
+    Pid ! {self(), fin},
+    receive
+        {Pid, {Loc, _, Arrow, Chan}} ->
+    % {Loc, _, Arrow} = Pid ! {self(), fin},
+        arrange_edgelist:start(Loc, Arrow)
+        % ok
+    end.
 
 % list([module]) -> atom
 % Moduleのリストの各要素を見てプロセスならPG生成の関数へ
-module([]) ->
+module([], _) ->
     fin;
-module([Module|Modules]) ->
+module([Module|Modules], Pid) ->
     Child = Module#tree.children,
     case Child of
-        [_|_] ->
-            io:format("hensuu sengen desu~n");
+        [_|_] ->                                        % decl_lst
+            % io:format("hensuu sengen desu~n");
+            decl_lst(Child, Pid);
         %プロセスならPG生成の関数へ
-        Proc when Proc#tree.value =:= proctype orelse Proc#tree.value =:= init ->
-            Pid = spawn(fun setmanager:start/0),
+        Proc when Proc#tree.value =:= proctype orelse Proc#tree.value =:= init ->       %proctype, init
+            io:format("proc desu~n"),
+            % Pid = spawn(fun setmanager:start/0),
             genPG(Child, Pid);
-        Decl when Decl#tree.value =:= utype orelse Decl#tree.value =:= mtype ->
+        Decl when Decl#tree.value =:= utype orelse Decl#tree.value =:= mtype ->     % utype, mtype
             io:format("declaration desu~n");
         _ ->
             io:format("module is neither a process nor declaration: ~p~n", [Child#tree.value])
     end,
-    module(Modules).
+    module(Modules, Pid).
+
+decl_lst([], _) ->
+    fin;
+decl_lst([One_decl|One_decls], Pid) ->
+    One_declChild  = One_decl#tree.children,
+    TypenameTree = hd(lists:nth(2, One_declChild)),
+    case TypenameTree#tree.children of
+        chan ->
+            Ivar = lists:nth(3, One_declChild),
+            ivar(Ivar, Pid);
+        true ->
+            pass
+    end,
+    decl_lst(One_decls, Pid).
+
+ivar([], _) ->
+    fin;
+ivar([Ivar|Ivars], Pid) ->
+    IvarChild = Ivar#tree.children,
+    channame(hd(IvarChild), Pid),
+    ivar(Ivars, Pid).
+
+channame([], _) ->
+    fin;
+channame([Name|Names], Pid) ->
+    my_utility:addchan(Name#tree.children, Pid),
+    channame(Names, Pid).
 
 %record(tree) -> pid -> atom
 genPG(Proc, Pid) ->
     ProcChild = Proc#tree.children,
+    my_utility:addloc(0, Pid),
     {Fin, NewI} = my_utility:listloop(ProcChild, Pid, 0, fin),       %proctype/initの子供のリストから[step]を見つけ出してpml2csに返す関数を呼びだし
     % プロセスが終了するならexitに枝をはる
     case Fin of
         fin ->
+            % my_utility:addloc(NewI, Pid),
             my_utility:genedge(NewI, {true,skip}, exit, Pid);
         notfin ->
             pass
-    end,
-    Pid ! {self(), fin}.
+    end.
+    % Pid ! {self(), fin},
+    % receive
+    %     {Pid, {Loc, _, Arrow}} ->
+    % % {Loc, _, Arrow} = Pid ! {self(), fin},
+    %     arrange_edgelist:start(Loc, Arrow)
+    % end.
 
 % List([step]) -> Nat -> record -> pid -> Nat -> atom -> tuple
 % stepのリストを受け取り各stepをstepを解析する関数へ渡し戻り値によって枝を次のLocにはるか判断する
@@ -51,7 +95,7 @@ sequence([], _, _, _, I, ifdayo) ->
 sequence([], _, _, _, I, _) ->
     {fin, I, nonbreak};
 sequence([Step|Steps], Source, Guard, Pid, I, IfFlag) ->
-    my_utility:addloc(I, Pid),
+    % my_utility:addloc(I, Pid),
     {StepAtom, Result} = step(Step, Pid, I),
     case StepAtom of
         stmnt1 ->       %if
@@ -67,22 +111,32 @@ sequence([Step|Steps], Source, Guard, Pid, I, IfFlag) ->
                     % my_utility:genedge(I, {true,skip}, NewI, Pid),
                     sequence(Steps, NewI, true, Pid, NewI, IfFlag)
             end;
+        stmnt9 ->           %else
+            Act = Result,
+            my_utility:addact({Guard,Act}, Pid),
+            NewI = I + 1,
+            my_utility:addloc(NewI, Pid),
+            my_utility:genedge(Source, {Guard,Act}, NewI, Pid),
+            sequence(Steps, NewI, true, Pid, NewI, IfFlag);
         stmnt10 ->                  %break
             Act = Result,
             my_utility:addact({Guard,Act}, Pid),
             NewI = I + 1,
+            my_utility:addloc(NewI, Pid),
             my_utility:genedge(Source, {Guard,Act}, NewI, Pid),
             {fin, NewI, break};
         stmnt81314 ->
             Act = Result,
             my_utility:addact({Guard,Act}, Pid),
             NewI = I + 1,
+            my_utility:addloc(NewI, Pid),
             my_utility:genedge(Source, {Guard,Act}, NewI, Pid),
             sequence(Steps, NewI, true, Pid, NewI, IfFlag);
         one_decl ->
             Act = Result,
             my_utility:addact({Guard,Act}, Pid),
             NewI = I + 1,
+            my_utility:addloc(NewI, Pid),
             my_utility:genedge(Source, {Guard,Act}, NewI, Pid),
             sequence(Steps, NewI, true, Pid, NewI, IfFlag)
     end.
@@ -101,29 +155,31 @@ step(Step, Pid, I) ->
     end.
 % list(one_decl) -> pid -> Nat -> tuple
 one_decl([One_decl], Pid, I) ->
-    io:format("one_decl~n"),
-    Act = One_decl#tree.children,
+    % io:format("one_decl~n"),
+    Act = One_decl,
     {one_decl, Act}.
 
 %tuple(tree record) -> tuple({atom, Result})
 stmnt(Stmnt, Pid, I) when Stmnt#tree.value == stmnt1->      %stmnt1: if
-    io:format("stmnt1~n"),
+    % io:format("stmnt1~n"),
     Result = options(Stmnt#tree.children, I, [], Pid, I, break, ifdayo),
     {stmnt1, Result};
 stmnt(Stmnt, Pid, I) when Stmnt#tree.value == stmnt2 ->     %stmnt2: do
-    io:format("stmnt2~n"),
+    % io:format("stmnt2~n"),
     Result = options(Stmnt#tree.children,I, [], Pid, I, nonbreak, dodayo),    %Result -> {NewI, BreakFlag}
     {stmnt2, Result};
-stmnt(Stmnt, Pid, I) when Stmnt#tree.value == stmnt4 ->     %stmnt4: atomic
-    io:format("stmnt4~n");
-stmnt(Stmnt, Pid, I) when Stmnt#tree.value == stmnt9 ->     %stmnt9: else
-    io:format("stmnt9~n");
-stmnt(Stmnt, Pid, I) when Stmnt#tree.value == stmnt10 ->    %stmnt10: break
-    io:format("stmnt10~n"),
+% stmnt(Stmnt, Pid, I) when Stmnt#tree.value == stmnt4 ->     %stmnt4: atomic
+%     io:format("stmnt4~n");
+stmnt(Stmnt, _, _) when Stmnt#tree.value == stmnt9 ->     %stmnt9: else
+    % io:format("stmnt9~n"),
+    Act = Stmnt,
+    {stmnt9, Act};
+stmnt(Stmnt, _, _) when Stmnt#tree.value == stmnt10 ->    %stmnt10: break
+    % io:format("stmnt10~n"),
     Act = Stmnt,
     {stmnt10, Act};
-stmnt(Stmnt, Pid, I) when Stmnt#tree.value == stmnt8 orelse Stmnt#tree.value == stmnt13 orelse Stmnt#tree.value == stmnt14 ->       %stmnt8: send receive assign expr, stmnt13: printm stmnt14: printf
-    io:format("stmnt8or13or14:~p~n", [Stmnt]),
+stmnt(Stmnt, _, _) when Stmnt#tree.value == stmnt8 orelse Stmnt#tree.value == stmnt13 orelse Stmnt#tree.value == stmnt14 ->       %stmnt8: send receive assign expr, stmnt13: printm stmnt14: printf
+    % io:format("stmnt8or13or14:~p~n", [Stmnt]),
     Act = Stmnt,
     {stmnt81314, Act}.
 
@@ -143,7 +199,6 @@ options([Optionseq|Optionseqs], Source, Stack, Pid, I, Flag, IfFlag) ->         
     Result = optionseq(Optionseq, Source, Pid, I, IfFlag),
     {_, NewI, BreakFlag} = Result,
     NewStack = my_utility:push(Stack, {NewI, BreakFlag}),
-    io:format("Flag:~p~n", [Flag]),
     case Flag of
         nonbreak ->
             options(Optionseqs, Source, NewStack, Pid, NewI, BreakFlag, IfFlag);

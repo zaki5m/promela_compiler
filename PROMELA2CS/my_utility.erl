@@ -1,5 +1,5 @@
 -module(my_utility).
--export([push/2, pop/1, genedgeStack/4,listloop/4, genedge/4, addloc/2, addact/2]).
+-export([push/2, pop/1, genedgeStack/4,listloop/4, genedge/4, addloc/2, addact/2, addchan/2]).
 -include("record.hrl").
 
 push(Stack, Value) ->
@@ -13,11 +13,12 @@ pop(Stack) ->
 
 % list -> Nat -> pid -> Nat -> Nat
 % スタックに積まれたstepの枝をはる関数，breakの場合は一個すすめbreakがない場合はTargetで指定したLocに戻る
-genedgeStack([], _, _, I) ->
+genedgeStack([], _, Pid, I) ->
+    addloc(I+1, Pid),
     I + 1;
 genedgeStack(Stack, Target, Pid, I) ->
     {{Source, BreakFlag}, T} = pop(Stack),
-    io:format("NewI:~pFlag:~p~n", [Source, BreakFlag]),
+    % io:format("NewI:~pFlag:~p~n", [Source, BreakFlag]),
     case BreakFlag of
         nonbreak ->
             genedge(Source, {true,skip}, Target, Pid),
@@ -34,8 +35,14 @@ listloop([H|[]], Pid, I, Fin) ->
     {NewFin, NewI, _} = pml2cs:sequence(H, I, true, Pid, I, firstcall),
     listloop([], Pid, NewI, NewFin);
 listloop([H|T], Pid, I, Fin) ->
-    io:format("H:~p~n", [H]),
-    listloop(T, Pid, I, Fin).
+    case is_list(H) of
+        true ->
+            % io:format("H:~p~n", [H]),
+            listloop(T, Pid, I, Fin);
+        false ->
+            % io:format("H:~p~n", [H]),
+            listloop(T, Pid, I, Fin)
+    end.
 
 genedge(Source, Act, Target, Pid) ->
     Pid ! {self(), {arrow, {Source, Act, Target}}},
@@ -53,6 +60,13 @@ addloc(I, Pid) ->
 
 addact(Act, Pid) ->
     Pid ! {self(), {act, Act}},
+    receive
+        {Pid, ok} ->
+            ok
+    end.
+
+addchan(Chan, Pid) ->
+    Pid ! {self(), {chan, Chan}},
     receive
         {Pid, ok} ->
             ok
