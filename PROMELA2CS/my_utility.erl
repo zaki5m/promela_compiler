@@ -1,5 +1,5 @@
 -module(my_utility).
--export([push/2, pop/1, genedgeStack/4,listloop/4, genedge/4, addloc/2, addact/2, addchan/2]).
+-export([push/2, pop/1, genedgeStack/4,listloop/4, genedge/4, checkstate/2, checkedge/2, addloc/2, addact/2, addchan/2]).
 -include("record.hrl").
 
 push(Stack, Value) ->
@@ -25,6 +25,9 @@ genedgeStack(Stack, Target, Pid, I) ->
             genedgeStack(T, Target, Pid, I);
         break ->
             genedge(Source, {true,skip}, I+1, Pid),
+            genedgeStack(T, Target, Pid, I);
+        ifbreak ->
+            genedge(Source, {true,skip}, Target, Pid),
             genedgeStack(T, Target, Pid, I)
     end.
 
@@ -45,10 +48,23 @@ listloop([H|T], Pid, I, Fin) ->
     end.
 
 genedge(Source, Act, Target, Pid) ->
-    Pid ! {self(), {arrow, {Source, Act, Target}}},
+    Pid ! {self(), {edge, {Source, Act, Target}}},
     receive
         {Pid, ok} ->
             ok
+    end.
+
+checkedge(Edge, Pid) ->
+    Pid ! {self(), {check, Edge}},
+    receive
+        {Pid, Result} ->
+            Result
+    end.
+checkstate(State, Pid) ->
+    Pid ! {self(), {check, State}},
+    receive
+        {Pid, Result} ->
+            Result
     end.
 
 addloc(I, Pid) ->

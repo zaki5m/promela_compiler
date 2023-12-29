@@ -124,7 +124,12 @@ sequence([Step|Steps], Source, Guard, Pid, I, IfFlag) ->
     case StepAtom of
         stmnt1 ->       %if
             {NewI, Flag} = Result,
-            sequence(Steps, NewI, true, Pid, NewI, IfFlag);
+            case Flag of
+                nonbreak ->
+                    sequence(Steps, NewI, true, Pid, NewI, IfFlag);
+                break ->
+                    {fin, -1, ifbreak}
+            end;
         stmnt2 ->       %do
             {NewI, Flag} = Result,
             %doの中にbreakがない場合は無限ループするのでこれ以降のstepに枝をはらない
@@ -133,6 +138,8 @@ sequence([Step|Steps], Source, Guard, Pid, I, IfFlag) ->
                     {notfin, NewI, nonbreak};
                 break ->
                     % my_utility:genedge(I, {true,skip}, NewI, Pid),
+                    sequence(Steps, NewI, true, Pid, NewI, IfFlag);
+                ifbreak ->
                     sequence(Steps, NewI, true, Pid, NewI, IfFlag)
             end;
         stmnt9 ->           %else
@@ -229,6 +236,8 @@ options([Optionseq|Optionseqs], Source, Stack, Pid, I, Flag, IfFlag) ->         
         nonbreak ->
             options(Optionseqs, Source, NewStack, Pid, NewI, BreakFlag, IfFlag);
         break ->
+            options(Optionseqs, Source, NewStack, Pid, NewI, Flag, IfFlag);
+        ifbreak ->
             options(Optionseqs, Source, NewStack, Pid, NewI, Flag, IfFlag)
     end.
 
@@ -237,8 +246,29 @@ options([Optionseq|Optionseqs], Source, Stack, Pid, I, Flag, IfFlag) ->         
 optionseq(Optionseq, Source, Pid, I, IfFlag) ->
     [GuardTree|StepList] = Optionseq#tree.children,
     Guard = guard(GuardTree, Pid, I),
-    Result = sequence(hd(StepList), Source, Guard, Pid, I, IfFlag),     %Result->{fin, NewI, BreakFlag}
-    Result.
+    Tmp = hd(StepList),
+    Step = hd(Tmp),
+    StepChild = Step#tree.children,
+    StmntTree = hd(StepChild),
+    case StmntTree#tree.value of
+        stmnt1 ->
+            my_utility:addact({Guard,skip}, Pid),
+            NewI = I + 1,
+            my_utility:addloc(NewI, Pid),
+            my_utility:genedge(Source, {Guard,skip}, NewI, Pid),
+            Result = sequence(hd(StepList), Source, Guard, Pid, NewI, IfFlag),
+            Result;
+        stmnt2 ->
+            my_utility:addact({Guard,skip}, Pid),
+            NewI = I + 1,
+            my_utility:addloc(NewI, Pid),
+            my_utility:genedge(Source, {Guard,skip}, NewI, Pid),
+            Result = sequence(hd(StepList), Source, Guard, Pid, NewI, IfFlag),
+            Result;
+        _ ->
+            Result = sequence(hd(StepList), Source, Guard, Pid, I, IfFlag),     %Result->{fin, NewI, BreakFlag}
+            Result
+    end.
 
 guard(GuardTree, Pid, I) ->
     [Stmnt4guard|GuardOpt] = GuardTree#tree.children,

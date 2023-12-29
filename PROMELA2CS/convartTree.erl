@@ -25,7 +25,7 @@ stackback(Tree, Stack) ->
 listloop([], List, Stack) ->
     List;
 listloop(ChildList, List, Stack) ->
-    io:format("~p~n", [hd(ChildList)]),
+    % io:format("~p~n", [hd(ChildList)]),
     case hd(ChildList) of
         {T} ->
             Tree = genTree:make_node(T, []),
@@ -73,19 +73,16 @@ start2(Tuple) ->
 %Stackに木の親を積んでおいて子の木を下請けに作らせる
 %{非終端,{終端}}であれば最後まで子供を作り終えたのでスタックを順にpopしていく
 loop({NT, {T}}, Stack) ->
-    io:format("AA~n"),
     Tree = genTree:make_node(NT, T),
     stackback(Tree, Stack);
 %{非終端,[リスト]}であればlistloopにリストの中の子の木をそれぞれ作ってもらう
 loop({NT, [H|T]}, Stack) ->
-    io:format("CC~n"),
     Children = listloop([H|T], [], []),
     Children2 = lists:reverse(Children),
     Tree = genTree:make_node(NT, Children2),
     stackback(Tree, Stack);
 %{非終端,{}}であれば単に親をスタックに積んで子のタプルをloopへ
 loop({NT, Tuple}, Stack) ->
-    io:format("BB~n"),
     NewStack = push(Stack, NT),
     loop(Tuple, NewStack).
 

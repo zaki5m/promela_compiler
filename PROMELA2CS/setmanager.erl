@@ -18,6 +18,8 @@ judgeGuardsr(Guard) ->
             end
     end.
 
+judgeActsr(Act) when Act == skip ->
+        notsr;
 judgeActsr(Act) ->
     case Act#tree.value of
         stmnt8 ->
