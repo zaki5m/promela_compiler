@@ -1,44 +1,68 @@
 -module(pml2cs).
--export([start/1, sequence/6]).
+-export([start/1, start2/1, sequence/6]).
 -import(lists, [map/2]).
 -include("record.hrl").
 
 start(Tree) ->
-    spec(Tree).
+    {Numproc, PGList, ChanList} = spec(Tree),
+    io:format("~p~n", [PGList]),
+    {ok, Out1} = file:open("CSedges.out", write),
+    file:write_file("CSedges", PGList),
+    file:close(Out1),
+    cs2csprime:start(Numproc, PGList, ChanList).
+
+start2(Tree) ->
+    {Numproc, PGList, ChanList} = spec(Tree),
+    io:format("~p~n", [PGList]).
 
 spec(Tree) ->
     Module = Tree#tree.children,
-    Pid = spawn(fun setmanager:start/0),
-    module(Module, Pid),
-    Pid ! {self(), fin},
-    receive
-        {Pid, {Loc, _, Arrow, Chan}} ->
-    % {Loc, _, Arrow} = Pid ! {self(), fin},
-        arrange_edgelist:start(Loc, Arrow)
-        % ok
-    end.
+    {Numproc, PGList, ChanList} = module(Module, 0, [], []),
+    {Numproc, PGList, ChanList}.
 
 % list([module]) -> atom
 % Moduleのリストの各要素を見てプロセスならPG生成の関数へ
-module([], _) ->
-    fin;
-module([Module|Modules], Pid) ->
+module([], Numproc, PGList, ChanList) ->
+    {Numproc, PGList, ChanList};
+module([Module|Modules], Numproc, PGList, ChanList) ->
     Child = Module#tree.children,
     case Child of
         [_|_] ->                                        % decl_lst
             % io:format("hensuu sengen desu~n");
-            decl_lst(Child, Pid);
+            Pid = spawn(fun() -> setmanager:addchan([]) end),
+            decl_lst(Child, Pid),
+            Pid ! {self(), fin},
+            receive
+                {Pid, Chan} ->
+                    NewChanList = ChanList ++ Chan
+            end,
+            module(Modules, Numproc, PGList, NewChanList);
         %プロセスならPG生成の関数へ
         Proc when Proc#tree.value =:= proctype orelse Proc#tree.value =:= init ->       %proctype, init
-            io:format("proc desu~n"),
-            % Pid = spawn(fun setmanager:start/0),
-            genPG(Child, Pid);
+            Pid = spawn(fun setmanager:start/0),
+            genPG(Child, Pid),
+            Pid ! {self(),fin},
+            receive
+                {Pid, {Loc, Act, Arrow}} ->
+                PG = {Loc, Act, Arrow},
+                NewPGList = PGList ++ [PG]
+            end,
+            module(Modules, Numproc+1, NewPGList, ChanList);
         Decl when Decl#tree.value =:= utype orelse Decl#tree.value =:= mtype ->     % utype, mtype
-            io:format("declaration desu~n");
+            io:format("declaration desu~n"),
+            module(Modules, Numproc, PGList, ChanList);
         _ ->
             io:format("module is neither a process nor declaration: ~p~n", [Child#tree.value])
-    end,
-    module(Modules, Pid).
+    end.
+    % Pid ! {self(), fin},
+    % receive
+    %     {Pid, {Loc, Act, Arrow, Chan}} ->
+    %         io:format("aaa"),
+    % % {Loc, _, Arrow} = Pid ! {self(), fin},
+    %     % arrange_edgelist:start(Loc, Arrow)
+    %         PG = {Numproc, {Loc, Act, Arrow, Chan}},
+    %         NewPGList = PGList ++ [PG]
+    % end,
 
 decl_lst([], _) ->
     fin;
@@ -184,9 +208,11 @@ stmnt(Stmnt, _, _) when Stmnt#tree.value == stmnt8 orelse Stmnt#tree.value == st
     {stmnt81314, Act}.
 
 stmnt4guard(Stmnt4guard, Pid, I) when Stmnt4guard#tree.value == stmnt4guard1->
-    Stmnt4guard#tree.children;
+    % Stmnt4guard#tree.children;
+    Stmnt4guard;
 stmnt4guard(Stmnt4guard, Pid, I) when Stmnt4guard#tree.value == stmnt4guard2->
-    Stmnt4guard#tree.children.
+    % Stmnt4guard#tree.children.
+    Stmnt4guard.
 
 % list([optionseq]) -> Nat -> list -> pid -> Nat -> atom -> atom -> tuple({optionの中で進めた分だけインクリメントしたI, Flag})
 % optionseqの下の[step]の最後のstepの遷移先をスタックにつんで最後にスタックの中身のエッジをはる(Targetはdoの繰り返し先)
