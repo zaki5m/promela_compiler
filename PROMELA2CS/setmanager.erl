@@ -83,6 +83,21 @@ start() ->
 
 addel(Loc, Act, Edge) ->
     receive
+        {From, {changeminus, Target}} ->
+            TargetList = lists:map(fun(X) -> {_, _, Target2} = X, Target2 end, Edge),
+            MinimumNum = lists:foldl(fun(X, Y) -> case X < Y of  true -> X; false -> Y end end, 0, TargetList),
+            NewEdge = lists:map(fun(X) -> {TmpSource, TmpAct, TmpTarget} = X, case TmpTarget == MinimumNum of true -> {TmpSource, TmpAct, Target}; false -> X end end, Edge),
+            From ! {self(), ok},
+            addel(Loc, Act, NewEdge);
+        {From, checkminlocnum} ->
+            TargetList = lists:map(fun(X) -> {_, _, Target2} = X, Target2 end, Edge),
+            MinimumNum = lists:foldl(fun(X, Y) -> case X < Y of  true -> X; false -> Y end end, 0, TargetList),
+            From ! {self(), MinimumNum},
+            addel(Loc, Act, Edge);
+        {From, {checkminus1}} ->
+            Result = lists:any(fun(X) -> {_, _ , Target} = X, Target == -1 end, Edge),
+            From ! {self(), Result},
+            addel(Loc, Act, Edge);
         {From, {check, Value}} ->
             Result = lists:member(Value, Edge),
             From ! {self(), Result},

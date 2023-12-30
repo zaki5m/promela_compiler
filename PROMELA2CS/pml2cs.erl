@@ -121,6 +121,7 @@ sequence([], _, _, _, I, _) ->
 sequence([Step|Steps], Source, Guard, Pid, I, IfFlag) ->
     % my_utility:addloc(I, Pid),
     {StepAtom, Result} = step(Step, Pid, I),
+    % io:format("StepAtom:~p, Result:~p~n", [StepAtom, Result]),
     case StepAtom of
         stmnt1 ->       %if
             {NewI, Flag} = Result,
@@ -128,17 +129,35 @@ sequence([Step|Steps], Source, Guard, Pid, I, IfFlag) ->
                 nonbreak ->
                     sequence(Steps, NewI, true, Pid, NewI, IfFlag);
                 break ->
-                    {fin, -1, ifbreak}
+                    % {fin, NewI, break}
+                    sequence(Steps, NewI, true, Pid, NewI, IfFlag)
             end;
         stmnt2 ->       %do
             {NewI, Flag} = Result,
             %doの中にbreakがない場合は無限ループするのでこれ以降のstepに枝をはらない
             case Flag of
                 nonbreak ->
-                    {notfin, NewI, nonbreak};
+                    Judge = my_utility:checkminus1(Pid),
+                    io:format("Judge:~p~n", [NewI]),
+                    case Judge of
+                        true ->
+                            my_utility:changeminusedge(Pid, NewI),
+                            sequence(Steps, NewI, true, Pid, NewI, IfFlag);
+                        false ->
+                            {notfin, NewI, nonbreak}
+                    end;
                 break ->
+                    Judge = my_utility:checkminus1(Pid),
+                    io:format("Judge:~p~n", [NewI]),
+                    case Judge of
+                        true ->
+                            my_utility:changeminusedge(Pid, NewI),
+                            sequence(Steps, NewI, true, Pid, NewI, IfFlag);
+                        false ->
+                            sequence(Steps, NewI, true, Pid, NewI, IfFlag)
+                    end;
                     % my_utility:genedge(I, {true,skip}, NewI, Pid),
-                    sequence(Steps, NewI, true, Pid, NewI, IfFlag);
+                    % sequence(Steps, NewI, true, Pid, NewI, IfFlag);
                 ifbreak ->
                     sequence(Steps, NewI, true, Pid, NewI, IfFlag)
             end;
@@ -155,7 +174,12 @@ sequence([Step|Steps], Source, Guard, Pid, I, IfFlag) ->
             NewI = I + 1,
             my_utility:addloc(NewI, Pid),
             my_utility:genedge(Source, {Guard,Act}, NewI, Pid),
-            {fin, NewI, break};
+            case IfFlag of
+                ifdayo ->
+                    {fin, NewI, ifbreak};
+                _ ->
+                    {fin, NewI, break}
+            end;
         stmnt81314 ->
             Act = Result,
             my_utility:addact({Guard,Act}, Pid),
@@ -193,11 +217,23 @@ one_decl([One_decl], Pid, I) ->
 %tuple(tree record) -> tuple({atom, Result})
 stmnt(Stmnt, Pid, I) when Stmnt#tree.value == stmnt1->      %stmnt1: if
     % io:format("stmnt1~n"),
-    Result = options(Stmnt#tree.children, I, [], Pid, I, break, ifdayo),
+    Pid ! {self(), checkminlocnum},
+    receive
+        {Pid, MinimumNum} when MinimumNum >= 0 ->
+            Result = options(Stmnt#tree.children, I, [], Pid, I, break, ifdayo, -1);
+        {Pid, MinimumNum} ->
+            Result = options(Stmnt#tree.children, I, [], Pid, I, break, ifdayo, MinimumNum)
+    end,
     {stmnt1, Result};
 stmnt(Stmnt, Pid, I) when Stmnt#tree.value == stmnt2 ->     %stmnt2: do
     % io:format("stmnt2~n"),
-    Result = options(Stmnt#tree.children,I, [], Pid, I, nonbreak, dodayo),    %Result -> {NewI, BreakFlag}
+    Pid ! {self(), checkminlocnum},
+    receive
+        {Pid, MinimumNum} when MinimumNum >= 0 ->
+            Result = options(Stmnt#tree.children, I, [], Pid, I, nonbreak, dodayo, -1);     %Result -> {NewI, BreakFlag}
+        {Pid, MinimumNum} ->
+            Result = options(Stmnt#tree.children, I, [], Pid, I, nonbreak, dodayo, MinimumNum-1)
+    end,
     {stmnt2, Result};
 % stmnt(Stmnt, Pid, I) when Stmnt#tree.value == stmnt4 ->     %stmnt4: atomic
 %     io:format("stmnt4~n");
@@ -225,20 +261,29 @@ stmnt4guard(Stmnt4guard, Pid, I) when Stmnt4guard#tree.value == stmnt4guard2->
 % optionseqの下の[step]の最後のstepの遷移先をスタックにつんで最後にスタックの中身のエッジをはる(Targetはdoの繰り返し先)
 % 第五引数のFlagはbreakを含んでいるかどうか
 % IfFlagはこのoption関数が　stmnt関数内のifのケースから呼ばれたかどうか
-options([], Source, Stack, Pid, I, Flag, _) ->
-    NewI = my_utility:genedgeStack(Stack, Source, Pid, I),
+options([], Source, Stack, Pid, I, Flag, _, MinimumNum) ->
+    io:format("MinimumNum:~p~n", [MinimumNum]),
+    % Pid ! {self(), checkminlocnum},
+    % receive
+    %     {Pid, MinimumNum} when MinimumNum >= 0 ->
+    %         NewI = my_utility:genedgeStack(Stack, Source, Pid, I, -1);
+    %     {Pid, MinimumNum} ->
+    %         NewI = my_utility:genedgeStack(Stack, Source, Pid, I, MinimumNum-1)
+    % end,
+    NewI = my_utility:genedgeStack(Stack, Source, Pid, I, MinimumNum),
+    % io:format("NewI:~p, Flag:~p~n", [NewI, Flag]),
     {NewI, Flag};
-options([Optionseq|Optionseqs], Source, Stack, Pid, I, Flag, IfFlag) ->               %breakの場合はスタックに積まずに再帰
+options([Optionseq|Optionseqs], Source, Stack, Pid, I, Flag, IfFlag, MinimumNum) ->               %breakの場合はスタックに積まずに再帰
     Result = optionseq(Optionseq, Source, Pid, I, IfFlag),
     {_, NewI, BreakFlag} = Result,
     NewStack = my_utility:push(Stack, {NewI, BreakFlag}),
     case Flag of
         nonbreak ->
-            options(Optionseqs, Source, NewStack, Pid, NewI, BreakFlag, IfFlag);
+            options(Optionseqs, Source, NewStack, Pid, NewI, BreakFlag, IfFlag, MinimumNum);
         break ->
-            options(Optionseqs, Source, NewStack, Pid, NewI, Flag, IfFlag);
+            options(Optionseqs, Source, NewStack, Pid, NewI, Flag, IfFlag, MinimumNum);
         ifbreak ->
-            options(Optionseqs, Source, NewStack, Pid, NewI, Flag, IfFlag)
+            options(Optionseqs, Source, NewStack, Pid, NewI, Flag, IfFlag, MinimumNum)
     end.
 
 % record -> Nat -> pid -> Nat　-> atom -> tuple
