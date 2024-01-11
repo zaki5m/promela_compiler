@@ -1,0 +1,5 @@
+*.beam
+a.out
+*.txt
+*.dump
+
