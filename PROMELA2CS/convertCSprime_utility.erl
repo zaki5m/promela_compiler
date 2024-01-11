@@ -18,29 +18,37 @@ operatePG(Edges) ->
             operatePG(Edges)
     end.
 
-operateChan(ValueList) ->
+operateChan(ChanCap) ->
     receive
         {From, fin} ->
             fin;
-        {From, read} ->
-            case length(ValueList) of
-                0 ->
+        {From, read, ChanValueList, Channame} ->
+            {UseChanValueList,Other}  = lists:partition(fun(X) -> {Name, _} = X, Name == Channame end, ChanValueList),
+            {_, TmpValueList} = hd(UseChanValueList),
+            case length(TmpValueList) == 0 of
+                true ->
                     From ! {self(), stay},
-                    operateChan(ValueList);
-                1 ->
-                    NewValueList = tl(ValueList),
-                    From ! {self(), NewValueList},
-                    operateChan(NewValueList)
+                    operateChan(ChanCap);
+                false ->
+                    NewValueList = tl(TmpValueList),
+                    ReturnValueList = [{Channame, NewValueList}|Other],
+                    % io:format("ReturnValueList:~p~n", [ReturnValueList]),
+                    From ! {self(), ReturnValueList},
+                    operateChan(ChanCap)
             end;
-        {From, {write, Value}} ->
-            case length(ValueList) of
-                1 ->
+        {From, {write, Value}, ChanValueList, Channame} ->
+            {UseChanValueList,Other}  = lists:partition(fun(X) -> {Name, _} = X, Name == Channame end, ChanValueList),
+            {_, TmpValueList} = hd(UseChanValueList),
+            case length(TmpValueList) == ChanCap of
+                true ->
                     From ! {self(), stay},
-                    operateChan(ValueList);
-                0 ->
-                    NewValueList = ValueList ++ [Value],
-                    From ! {self(), NewValueList},
-                    operateChan(NewValueList)
+                    operateChan(ChanCap);
+                false ->
+                    NewValueList = TmpValueList ++ [Value],
+                    ReturnValueList = [{Channame, NewValueList}|Other],
+                    % io:format("ReturnValueList:~p~n", [ReturnValueList]),
+                    From ! {self(), ReturnValueList},
+                    operateChan(ChanCap)
             end
     end.
 

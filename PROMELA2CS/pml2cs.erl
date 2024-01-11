@@ -4,31 +4,30 @@
 -include("record.hrl").
 
 start(Tree) ->
-    {Numproc, PGList, ChanList} = spec(Tree),
+    {Numproc, PGList, ChanList, MtypeList} = spec(Tree),
     io:format("~p~n", [PGList]),
     {ok, Out1} = file:open("CSedges.out", write),
     file:write_file("CSedges", PGList),
     file:close(Out1),
-    cs2csprime:start(Numproc, PGList, ChanList).
+    cs2csprime:start(Numproc, PGList, ChanList, MtypeList).
 
 start2(Tree) ->
-    {Numproc, PGList, ChanList} = spec(Tree),
-    io:format("~p~n", [PGList]).
+    {Numproc, PGList, ChanList, MtypeList} = spec(Tree),
+    io:format("~p~p~n", [MtypeList, PGList]).
 
 spec(Tree) ->
     Module = Tree#tree.children,
-    {Numproc, PGList, ChanList} = module(Module, 0, [], []),
-    {Numproc, PGList, ChanList}.
+    {Numproc, PGList, ChanList, MtypeList} = module(Module, 0, [], [], []),
+    {Numproc, PGList, ChanList, MtypeList}.
 
 % list([module]) -> atom
 % Moduleのリストの各要素を見てプロセスならPG生成の関数へ
-module([], Numproc, PGList, ChanList) ->
-    {Numproc, PGList, ChanList};
-module([Module|Modules], Numproc, PGList, ChanList) ->
+module([], Numproc, PGList, ChanList, MtypeList) ->
+    {Numproc, PGList, ChanList, MtypeList};
+module([Module|Modules], Numproc, PGList, ChanList, MtypeList) ->
     Child = Module#tree.children,
     case Child of
         [_|_] ->                                        % decl_lst
-            % io:format("hensuu sengen desu~n");
             Pid = spawn(fun() -> setmanager:addchan([]) end),
             decl_lst(Child, Pid),
             Pid ! {self(), fin},
@@ -36,21 +35,28 @@ module([Module|Modules], Numproc, PGList, ChanList) ->
                 {Pid, Chan} ->
                     NewChanList = ChanList ++ Chan
             end,
-            module(Modules, Numproc, PGList, NewChanList);
+            module(Modules, Numproc, PGList, NewChanList, MtypeList);
         %プロセスならPG生成の関数へ
         Proc when Proc#tree.value =:= proctype orelse Proc#tree.value =:= init ->       %proctype, init
             Pid = spawn(fun setmanager:start/0),
-            genPG(Child, Pid),
+            ProcName = genPG(Child, Pid),
             Pid ! {self(),fin},
             receive
                 {Pid, {Loc, Act, Arrow}} ->
-                PG = {Loc, Act, Arrow},
+                PG = {ProcName, {Loc, Act, Arrow}},
                 NewPGList = PGList ++ [PG]
             end,
-            module(Modules, Numproc+1, NewPGList, ChanList);
-        Decl when Decl#tree.value =:= utype orelse Decl#tree.value =:= mtype ->     % utype, mtype
-            io:format("declaration desu~n"),
-            module(Modules, Numproc, PGList, ChanList);
+            module(Modules, Numproc+1, NewPGList, ChanList, MtypeList);
+        Decl when Decl#tree.value =:= mtype ->     % utype, mtype
+            Pid = spawn(fun() -> setmanager:addmtype([]) end),
+            NameList = Decl#tree.children,
+            mtype(hd(NameList), Pid),
+            Pid ! {self(), fin},
+            receive
+                {Pid, Mtype} ->
+                    NewMtypeList = MtypeList ++ Mtype
+            end,
+            module(Modules, Numproc, PGList, ChanList, NewMtypeList);
         _ ->
             io:format("module is neither a process nor declaration: ~p~n", [Child#tree.value])
     end.
@@ -63,6 +69,12 @@ module([Module|Modules], Numproc, PGList, ChanList) ->
     %         PG = {Numproc, {Loc, Act, Arrow, Chan}},
     %         NewPGList = PGList ++ [PG]
     % end,
+mtype([], _) ->
+    fin;
+mtype([NameTree|Names], Pid) ->
+    Name = NameTree#tree.children,
+    my_utility:addmtype(Name, Pid),
+    mtype(Names, Pid).
 
 decl_lst([], _) ->
     fin;
@@ -73,7 +85,7 @@ decl_lst([One_decl|One_decls], Pid) ->
         chan ->
             Ivar = lists:nth(3, One_declChild),
             ivar(Ivar, Pid);
-        true ->
+        _ ->
             pass
     end,
     decl_lst(One_decls, Pid).
@@ -95,12 +107,13 @@ channame([Name|Names], Pid) ->
 genPG(Proc, Pid) ->
     ProcChild = Proc#tree.children,
     my_utility:addloc(0, Pid),
-    {Fin, NewI} = my_utility:listloop(ProcChild, Pid, 0, fin),       %proctype/initの子供のリストから[step]を見つけ出してpml2csに返す関数を呼びだし
+    {Fin, NewI, ProcName} = my_utility:listloop(ProcChild, Pid, 0, fin, name),       %proctype/initの子供のリストから[step]を見つけ出してpml2csに返す関数を呼びだし
     % プロセスが終了するならexitに枝をはる
     case Fin of
         fin ->
             % my_utility:addloc(NewI, Pid),
-            my_utility:genedge(NewI, {true,skip}, exit, Pid);
+            my_utility:genedge(NewI, {true,skip}, exit, Pid),
+            ProcName;
         notfin ->
             pass
     end.
@@ -138,7 +151,6 @@ sequence([Step|Steps], Source, Guard, Pid, I, IfFlag) ->
             case Flag of
                 nonbreak ->
                     Judge = my_utility:checkminus1(Pid),
-                    io:format("Judge:~p~n", [NewI]),
                     case Judge of
                         true ->
                             my_utility:changeminusedge(Pid, NewI),
@@ -148,7 +160,6 @@ sequence([Step|Steps], Source, Guard, Pid, I, IfFlag) ->
                     end;
                 break ->
                     Judge = my_utility:checkminus1(Pid),
-                    io:format("Judge:~p~n", [NewI]),
                     case Judge of
                         true ->
                             my_utility:changeminusedge(Pid, NewI),
@@ -156,11 +167,10 @@ sequence([Step|Steps], Source, Guard, Pid, I, IfFlag) ->
                         false ->
                             sequence(Steps, NewI, true, Pid, NewI, IfFlag)
                     end;
-                    % my_utility:genedge(I, {true,skip}, NewI, Pid),
-                    % sequence(Steps, NewI, true, Pid, NewI, IfFlag);
                 ifbreak ->
                     sequence(Steps, NewI, true, Pid, NewI, IfFlag)
             end;
+
         stmnt9 ->           %else
             Act = Result,
             my_utility:addact({Guard,Act}, Pid),
@@ -210,13 +220,11 @@ step(Step, Pid, I) ->
     end.
 % list(one_decl) -> pid -> Nat -> tuple
 one_decl([One_decl], Pid, I) ->
-    % io:format("one_decl~n"),
     Act = One_decl,
     {one_decl, Act}.
 
 %tuple(tree record) -> tuple({atom, Result})
 stmnt(Stmnt, Pid, I) when Stmnt#tree.value == stmnt1->      %stmnt1: if
-    % io:format("stmnt1~n"),
     Pid ! {self(), checkminlocnum},
     receive
         {Pid, MinimumNum} when MinimumNum >= 0 ->
@@ -226,7 +234,6 @@ stmnt(Stmnt, Pid, I) when Stmnt#tree.value == stmnt1->      %stmnt1: if
     end,
     {stmnt1, Result};
 stmnt(Stmnt, Pid, I) when Stmnt#tree.value == stmnt2 ->     %stmnt2: do
-    % io:format("stmnt2~n"),
     Pid ! {self(), checkminlocnum},
     receive
         {Pid, MinimumNum} when MinimumNum >= 0 ->
@@ -236,17 +243,14 @@ stmnt(Stmnt, Pid, I) when Stmnt#tree.value == stmnt2 ->     %stmnt2: do
     end,
     {stmnt2, Result};
 % stmnt(Stmnt, Pid, I) when Stmnt#tree.value == stmnt4 ->     %stmnt4: atomic
-%     io:format("stmnt4~n");
+
 stmnt(Stmnt, _, _) when Stmnt#tree.value == stmnt9 ->     %stmnt9: else
-    % io:format("stmnt9~n"),
     Act = Stmnt,
     {stmnt9, Act};
 stmnt(Stmnt, _, _) when Stmnt#tree.value == stmnt10 ->    %stmnt10: break
-    % io:format("stmnt10~n"),
     Act = Stmnt,
     {stmnt10, Act};
 stmnt(Stmnt, _, _) when Stmnt#tree.value == stmnt8 orelse Stmnt#tree.value == stmnt13 orelse Stmnt#tree.value == stmnt14 ->       %stmnt8: send receive assign expr, stmnt13: printm stmnt14: printf
-    % io:format("stmnt8or13or14:~p~n", [Stmnt]),
     Act = Stmnt,
     {stmnt81314, Act}.
 
@@ -262,16 +266,7 @@ stmnt4guard(Stmnt4guard, Pid, I) when Stmnt4guard#tree.value == stmnt4guard2->
 % 第五引数のFlagはbreakを含んでいるかどうか
 % IfFlagはこのoption関数が　stmnt関数内のifのケースから呼ばれたかどうか
 options([], Source, Stack, Pid, I, Flag, _, MinimumNum) ->
-    io:format("MinimumNum:~p~n", [MinimumNum]),
-    % Pid ! {self(), checkminlocnum},
-    % receive
-    %     {Pid, MinimumNum} when MinimumNum >= 0 ->
-    %         NewI = my_utility:genedgeStack(Stack, Source, Pid, I, -1);
-    %     {Pid, MinimumNum} ->
-    %         NewI = my_utility:genedgeStack(Stack, Source, Pid, I, MinimumNum-1)
-    % end,
     NewI = my_utility:genedgeStack(Stack, Source, Pid, I, MinimumNum),
-    % io:format("NewI:~p, Flag:~p~n", [NewI, Flag]),
     {NewI, Flag};
 options([Optionseq|Optionseqs], Source, Stack, Pid, I, Flag, IfFlag, MinimumNum) ->               %breakの場合はスタックに積まずに再帰
     Result = optionseq(Optionseq, Source, Pid, I, IfFlag),

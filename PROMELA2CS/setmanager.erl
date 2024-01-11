@@ -1,5 +1,5 @@
 -module(setmanager).
--export([start/0, addchan/1]).
+-export([start/0, addchan/1, addmtype/1]).
 -include("record.hrl").
 
 judgeGuardsr(Guard) ->
@@ -104,9 +104,16 @@ addel(Loc, Act, Edge) ->
             addel(Loc, Act, Edge);
         {From, {loc, Value}} ->
             % io:format("aaa~n"),
-            NewLoc = Loc ++ [Value],
-            From ! {self(), ok},
-            addel(NewLoc, Act, Edge);
+            Result = lists:member(Value, Loc),
+            case Result of
+                false ->
+                    NewLoc = Loc ++ [Value],
+                    From ! {self(), ok},
+                    addel(NewLoc, Act, Edge);
+                true ->
+                    From ! {self(), ok},
+                    addel(Loc, Act, Edge)
+            end;
         {From, {act, Value}} ->
             % io:format("bbb~n"),
             NewAct = Act ++ [Value],
@@ -136,4 +143,14 @@ addchan(Chan) ->
         {From, fin} ->
             % io:format("~p~n", [Chan]),
             From ! {self(), Chan}
+    end.
+
+addmtype(Mtype) ->
+    receive
+        {From, {mtype, Value}} ->
+            NewMtype = Mtype ++ [Value],
+            From ! {self(), ok},
+            addmtype(NewMtype);
+        {From, fin} ->
+            From ! {self(), Mtype}
     end.

@@ -1,5 +1,5 @@
 -module(my_utility).
--export([push/2, pop/1, genedgeStack/5,listloop/4, genedge/4, checkminus1/1, checkedge/2, addloc/2, addact/2, addchan/2, changeminusedge/2]).
+-export([push/2, pop/1, genedgeStack/5,listloop/5, genedge/4, checkminus1/1, checkedge/2, addloc/2, addact/2, addchan/2, changeminusedge/2, addmtype/2]).
 -include("record.hrl").
 
 push(Stack, Value) ->
@@ -32,19 +32,26 @@ genedgeStack(Stack, Target, Pid, I, MinimumNum) ->
     end.
 
 %proctypeの子供のリストから[step]を見つけ出してpml2csに返す
-listloop([], _, I, Fin) ->
-    {Fin, I};
-listloop([H|[]], Pid, I, Fin) ->
+listloop([], _, I, Fin, Name) ->
+    {Fin, I, Name};
+listloop([H|[]], Pid, I, Fin, Name) ->
     {NewFin, NewI, _} = pml2cs:sequence(H, I, true, Pid, I, firstcall),
-    listloop([], Pid, NewI, NewFin);
-listloop([H|T], Pid, I, Fin) ->
+    listloop([], Pid, NewI, NewFin, Name);
+listloop([H|T], Pid, I, Fin, Name) ->
     case is_list(H) of
         true ->
+            Tmp = hd(H),
+            case Tmp#tree.value of
+                name ->
+                    NewName = Tmp#tree.children,
+                    listloop(T, Pid, I, Fin, NewName);
+                _ ->
+                    listloop(T, Pid, I, Fin, Name)
+            end;
             % io:format("H:~p~n", [H]),
-            listloop(T, Pid, I, Fin);
         false ->
             % io:format("H:~p~n", [H]),
-            listloop(T, Pid, I, Fin)
+            listloop(T, Pid, I, Fin, Name)
     end.
 
 changeminusedge(Pid, Target) ->
@@ -91,6 +98,13 @@ addact(Act, Pid) ->
 
 addchan(Chan, Pid) ->
     Pid ! {self(), {chan, Chan}},
+    receive
+        {Pid, ok} ->
+            ok
+    end.
+
+addmtype(Mtype, Pid) ->
+    Pid ! {self(), {mtype, Mtype}},
     receive
         {Pid, ok} ->
             ok
