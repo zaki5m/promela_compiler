@@ -4,7 +4,7 @@ LOOPNUM = 6
 .SUFFIXES: .erl .beam
 
 
-go: pr cs convdata
+go: pr cs 
 
 debug:pr cs2
 
