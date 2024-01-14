@@ -1,0 +1,5 @@
+*.txt
+parsertab.py
+*.out
+tmp.erl
+*.pyc
