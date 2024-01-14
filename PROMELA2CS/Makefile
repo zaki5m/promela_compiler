@@ -11,7 +11,7 @@ debug:pr cs2
 pr: convartTree.beam
 	sh gen.sh $(TESTFILE)
 
-cs: pml2cs.beam convartTree.beam my_utility.beam setmanager.beam arrange_edgelist.beam cs2csprime.beam convertCSprime_utility.beam csprime2erl.beam funmanager.beam erlwriter.beam
+cs: pml2cs.beam convartTree.beam my_utility.beam setmanager.beam arrange_edgelist.beam cs2csprime.beam convertCSprime_utility.beam csprime2erl.beam funmanager.beam erlwriter.beam generlutility.beam
 	echo "pml2cs:start(" `cat hoge2.txt` ")."\
 	|erl
 
