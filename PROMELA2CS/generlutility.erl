@@ -205,9 +205,9 @@ declVar([Var|Vars], FPid) ->
     write({self(), {append, "   {_, "}}, FPid),
     TmpVar = atom_to_list(Var),
     write({self(), {append, TmpVar}}, FPid),
-    write({self(), {append, "} = lists:filter(fun(X) -> {Tmpname, _} = X, Tmpname == "}}, FPid),
+    write({self(), {append, "} = hd(lists:filter(fun(X) -> {Tmpname, _} = X, Tmpname == "}}, FPid),
     write({self(), {append, Var}}, FPid),
-    write({self(), {nl, " end, VarList),"}}, FPid),
+    write({self(), {nl, " end, VarList)),"}}, FPid),
     declVar(Vars, FPid).
 
 declGuardVar([], _) ->
@@ -216,9 +216,9 @@ declGuardVar([Var|Vars], FPid) ->
     write({self(), {append, "   {_, Tmp"}}, FPid),
     TmpVar = atom_to_list(Var),
     write({self(), {append, TmpVar}}, FPid),
-    write({self(), {append, "} = lists:filter(fun(X) -> {Tmpname, _} = X, Tmpname == "}}, FPid),
+    write({self(), {append, "} = hd(lists:filter(fun(X) -> {Tmpname, _} = X, Tmpname == "}}, FPid),
     write({self(), {append, Var}}, FPid),
-    write({self(), {nl, " end, VarList),"}}, FPid),
+    write({self(), {nl, " end, VarList)),"}}, FPid),
     declVar(Vars, FPid).
 
 writeListOperationForList(VarName, FPid) ->
