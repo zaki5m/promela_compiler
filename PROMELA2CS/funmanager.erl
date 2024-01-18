@@ -12,9 +12,10 @@ funmanager(I) ->
         {From, {deffun, State}} ->
             case get(State) of
                 undefined ->
-                    put(State, I),
+                    {Loc, _} = State,
+                    put(State, Loc),
                     % io:format("I:~p~n", [I]),
-                    From ! {self(), I},
+                    From ! {self(), Loc},
                     funmanager(I+1);
                 Value ->
                     From ! {self(), Value},
