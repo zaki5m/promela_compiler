@@ -1,5 +1,5 @@
 -module(generlutility).
--export([getguardvar/2, any_expr/2, write/2, valuelistWrite/2, expr/3, writeListOperationForList/2, genexit/1, moduleSetup/2, declGuardVar/2, declVar/2, startfun/3, endfun/4, varref/1]).
+-export([getguardvar/2, any_expr/2, write/2, valuelistWrite/2, expr/3, writeListOperationForList/2, genexit/1, moduleSetup/2, declGuardVar/2, declVar/2, startfun/3, endfun/4, varref/1, recfun/3, genSend/2, genReceive/4, send_args/1]).
 -include("record.hrl").
 
 %% ガード部分で用いる変数を取得する
@@ -52,6 +52,7 @@ expr(ExprTree, FPid, Flag) when ExprTree#tree.value == expr2 ->
 
 %% expr内での値のリストと変数のリストを返す
 any_expr(Any_exprTree, VarList) ->
+    io:format("AnyExpr: ~p~n", [Any_exprTree]),
     ValueList = [],
     Tmp = hd(Any_exprTree),
     case Tmp#tree.value of
@@ -183,6 +184,17 @@ endfun(FMPid, FPid, Target, VarListChangeFlag) ->
             end
     end.
 
+% 関数を再帰するときに呼び出す関数
+recfun(FMPid, FPid, Source) ->
+    FMPid ! {self(), {deffun, Source}},
+    receive
+        {FMPid, Funname} ->
+            % io:format("~p~n", [Funname]),
+            write({self(), {append, f}}, FPid),
+            write({self(), {append, Funname}}, FPid),
+            write({self(), {append, "(VarList)"}}, FPid)
+    end.
+
 genexit(FPid) ->
     write({self(), {append, exit}}, FPid),
     % write({self(), {nl, "(GPid) ->"}}, FPid),
@@ -229,3 +241,73 @@ writeListOperationForList(VarName, FPid) ->
     write({self(), {append, VarName}}, FPid),
     write({self(), {append, ","}}, FPid),
     fin.
+
+writeReceivePatern([], Source, FPid, FMPid) ->
+    write({self(), {nl, "      {_, Pid} ->"}}, FPid),
+    write({self(), {nl, "         Pid ! { self() , no},"}}, FPid),
+    write({self(), {append, "          "}}, FPid),
+    write({self(), {nl, recfun(FMPid, FPid, Source)}}, FPid),% パターンにマッチしなかった場合はloopする
+    fin;
+
+writeReceivePatern([Patern | PaternList], Source, FPid, FMPid) ->
+    {Buffer, Value} = Patern,
+    write({self(), {append, "      { {"}}, FPid),
+    write({self(), {append, Buffer}}, FPid),
+    write({self(), {append, " , "}}, FPid),
+    write({self(), {append, Value}}, FPid),
+    write({self(), {nl, " } , Pid } ->"}}, FPid),
+    write({self(), {nl, "         Pid ! { self(), ok }"}}, FPid),
+    write({self(), {nl, "         fin;"}}, FPid),
+    writeReceivePatern(PaternList, Source, FPid, FMPid).
+
+
+% PaternListはreceiveのパターンのリスト
+% {buffer, 値}の形式である
+% 例: [{c, 1}, {d, 2}, {c, 3}]
+genReceive(PaternList, Source, FPid, FMPid) -> 
+    write({self(), {append, "   receive"}}, FPid),
+    writeReceivePatern(PaternList, Source, FPid, FMPid),
+    write({self(), {nl, "   end,"}}, FPid).
+
+writeSendPatern([], FPid) ->
+    fin;
+
+writeSendPatern([Patern | PaternList], FPid) ->
+    {Buffer, ValueList} = Patern,
+    write({self(), {append, "      {"}}, FPid),
+    write({self(), {append, Buffer}}, FPid),
+    write({self(), {append, " , "}}, FPid),
+    valuelistWrite(ValueList, FPid),
+    write({self(), {append, " }"}}, FPid),
+    case PaternList of 
+        [] ->
+            write({self(), {nl, " ],"}}, FPid),
+            fin;
+        _ ->
+            write({self(), {append, ","}}, FPid)
+    end,
+    writeSendPatern(PaternList, FPid).
+
+genSend(PaternList, FPid) ->
+    %まずはsender用の関数をspawnする
+    write({self(), {append, "   SendList = ["}}, FPid),
+    writeSendPatern(PaternList, FPid),
+    write({self(), {nl, "   _ = spawn(fun () -> sendReceive:sender(SendList) end),"}}, FPid),
+    fin.
+
+send_args(SendArgs) ->
+    io:format("SendArgs: ~p~n", [SendArgs]),
+    Value = SendArgs#tree.value,
+    SendArgsChild = SendArgs#tree.children,
+    case Value of
+        send_args1 -> 
+            {ValueList, TmpVarList} = any_expr(SendArgsChild,[]),
+            VarList = lists:usort(TmpVarList),
+            NewValueList = lists:map(fun(X) -> case is_atom(X) of true -> atom_to_list(X); false -> X end end, ValueList),
+            {NewValueList, VarList};
+        send_args2 -> 
+            %tba
+            {[], []}
+    end.
+    
+    

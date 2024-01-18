@@ -63,7 +63,9 @@ start(Numproc, PGList, ChanList, MtypeList) ->
     CSprime = {States, Acts, Edges},
     finChanPid(ChanPidList),
     finPGPid(PGPidList),
-    IndividualPGEdgeList = separateCSprime:start({States, Acts, Edges}, Numproc, PGNameList),
+    % [{module名，Edgeのリスト}]のリスト
+    % Edge = { Sorce, Act, Target }
+    IndividualPGEdgeList = separateCSprime:start({States, Acts, Edges}, Numproc, PGNameList), % モジュール別のリスト
     io:format("IPGELIST:~p~n", [IndividualPGEdgeList]),
     csprime2erl:start(CSprime, IndividualPGEdgeList, ChanList, MtypeList).
 
