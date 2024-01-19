@@ -5,7 +5,7 @@
 
 start(Tree) ->
     {Numproc, PGList, ChanList, MtypeList, GlobalVarList} = spec(Tree),
-    % io:format("ChanList:~p~nMtypeList:~p~nGlobalVarList:~p~n", [ChanList, MtypeList, GlobalVarList]),
+    io:format("ChanList:~p~nMtypeList:~p~nGlobalVarList:~p~n", [ChanList, MtypeList, GlobalVarList]),
     {ok, Out1} = file:open("CSedges.out", write),
     file:write_file("CSedges", PGList),
     file:close(Out1),
@@ -17,7 +17,7 @@ start2(Tree) ->
     % {ok, Out1} = file:open("CSedges.out", write),
     % file:write_file("CSedges", PGList),
     % file:close(Out1),
-    cs2erl:start(PGList, ChanList, MtypeList).
+    cs2erl:start(PGList, ChanList, MtypeList, GlobalVarList).
 
 spec(Tree) ->
     Module = Tree#tree.children,
@@ -84,7 +84,6 @@ decl_lst([], GlobalVarList, _) ->
     GlobalVarList;
 decl_lst([One_decl|One_decls], GlobalVarList, Pid) ->
     One_declChild  = One_decl#tree.children,
-    io:format("One_declChild:~p~n", [One_declChild]),
     TypenameTree = hd(lists:nth(2, One_declChild)),
     case TypenameTree#tree.children of
         chan ->
@@ -111,7 +110,12 @@ ivar([Ivar|Ivars], Pid, GlobalVarList) ->
     Tmp1 = hd(IvarChild),
     Tmp2 = hd(Tmp1),
     Varname = Tmp2#tree.children,
-    NewGlobalVarList = [Varname | GlobalVarList],
+    Tmp3 = lists:nth(3, IvarChild),
+    Tmp4 = hd(Tmp3),
+    % io:format("Tmp4~p~n", [Tmp4]),
+    ConstTree = Tmp4#tree.children,
+    InitValue = ConstTree#tree.children,
+    NewGlobalVarList = [{Varname, InitValue} | GlobalVarList],
     ivar(Ivars, Pid, NewGlobalVarList).
 
 channame([], _) ->
