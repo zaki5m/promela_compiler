@@ -1,5 +1,5 @@
 -module(generlutility).
--export([getguardvar/2, any_expr/2, write/2, valuelistWrite/2, expr/3, writeListOperationForList/3, genexit/1, moduleSetup/2, declGuardVar/2, declVar/2, startfun/3, endfun/4, varref/1, recfun/3, genSend/2, genReceive/4, send_args/1, recv_args/1]).
+-export([getguardvar/2, any_expr/2, write/2, valuelistWrite/2, expr/3, writeListOperationForList/3, genexit/1, moduleSetup/3, declGuardVar/2, declVar/2, startfun/3, endfun/4, varref/1, recfun/3, genSend/2, genReceive/4, send_args/1, recv_args/1]).
 -include("record.hrl").
 
 %% ガード部分で用いる変数を取得する
@@ -202,12 +202,33 @@ genexit(FPid) ->
     write({self(), {nl, "   ManagerPid ! { self(), kill },"}}, FPid),
     write({self(), {nl, "   fin."}}, FPid).
 
-moduleSetup(ModuleName, FPid) ->
+globalVarListWrite([], _) ->
+    fin;
+
+globalVarListWrite([{Var, Value}|Vars], FPid) ->
+    write({self(), {append, "{"}}, FPid),
+    write({self(), {append, Var}}, FPid),
+    write({self(), {append, ", "}}, FPid),
+    write({self(), {append, Value}}, FPid),
+    write({self(), {nl, "}"}}, FPid),
+    case Vars of
+        [] ->
+            write({self(), {nl, "],"}}, FPid),
+            fin;
+        _ ->
+            write({self(), {append, ","}}, FPid),
+            globalVarListWrite(Vars, FPid)
+    end,
+    globalVarListWrite(Vars, FPid).
+
+moduleSetup(ModuleName, GlobalVarList, FPid) ->
     write({self(), {append, "-module("}}, FPid),
     write({self(), {append, ModuleName}}, FPid),
     write({self(), {nl, ")."}}, FPid),
     write({self(), {nl, "-export([start/1])."}}, FPid),
     write({self(), {nl, "start(ManagerPid) ->"}}, FPid),
+    write({self(), {nl, "   ManagerPid ! { self(), {globalVarPutList, ["}}, FPid),
+    globalVarListWrite(GlobalVarList, FPid),
     % write({self(), {nl, "   GPid = spawn(fun() -> globalvarmanager:loop() end),"}}, FPid),
     % write({self(), {nl, "   f0(GPid)."}}, FPid).
     write({self(), {nl, "   f0([],ManagerPid)."}}, FPid).

@@ -32,6 +32,13 @@ pidPool(PidList, GlobalVarList) ->
             TmpGlobalVarList = lists:filter(fun ({Var,_}) -> Var /= VarName end, GlobalVarList),
             NewGlobalVarList = [{VarName, VarValue}|TmpGlobalVarList],
             pidPool(PidList, NewGlobalVarList);
+        {_, {globalVarPutList, TmpGlobalVarList}} ->
+            case GlobalVarList of
+                [] ->
+                    pidPool(PidList, TmpGlobalVarList);
+                _ ->
+                    pidPool(PidList, GlobalVarList)
+            end;
         _ -> 
             pidPool(PidList, GlobalVarList)
     end.

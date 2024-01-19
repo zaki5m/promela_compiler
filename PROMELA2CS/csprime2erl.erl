@@ -17,17 +17,17 @@
 
 start(CSprime, IndividualPGEdgeList, ChanList, MtypeList, GlobalVarList) ->
     {State, Act, Edge} = CSprime,
-    generl(Edge,IndividualPGEdgeList, ChanList, MtypeList).
+    generl(Edge,IndividualPGEdgeList, ChanList, MtypeList, GlobalVarList).
 
 
-generl(_, [], _, _) ->
+generl(_, [], _, _, _) ->
     fin;
-generl(CSprimeEdges, [PGEdge|PGEdges], ChanList, MtypeList) ->
+generl(CSprimeEdges, [PGEdge|PGEdges], ChanList, MtypeList, GlobalVarList) ->
     {ModuleName, Edges} = PGEdge,
     File = erlwriter:openfile(ModuleName),
     FMPid = spawn(fun() -> funmanager:start(0) end),
     FPid = spawn(fun() -> erlwriter:filewrite(File) end),
-    generlutility:moduleSetup(ModuleName, FPid),
+    generlutility:moduleSetup(ModuleName, GlobalVarList, FPid),
     genmodule(Edges, ChanList, MtypeList, CSprimeEdges, FPid, FMPid),
     generlutility:genexit(FPid),
     erlwriter:closefile(File),
@@ -41,7 +41,7 @@ generl(CSprimeEdges, [PGEdge|PGEdges], ChanList, MtypeList) ->
         {FPid, ok} ->
             io:format("Ffin")
     end,
-    generl(CSprimeEdges, PGEdges, ChanList, MtypeList).
+    generl(CSprimeEdges, PGEdges, ChanList, MtypeList, GlobalVarList).
 
 genmodule([], _, _, _, _, _) ->
     fin;
@@ -83,8 +83,8 @@ defFun(Source, ActLabel, ChanList, MtypeList, FPid, FMPid) ->
                     VarListChangeFlag;
                 stmnt14 ->
                     VarListChangeFlag = analyzeStmnt14(ChanList, MtypeList, FPid, FMPid),
-                    VarListChangeFlag
-                % one_decl ->
+                    VarListChangeFlag;
+                one_decl -> nochange
             end
         % _ ->
         %     writeguard(Guard, ChanList, MtypeList, FPid, FMPid),
@@ -131,8 +131,9 @@ defFunwithGuard(Source, [], ChanList, MtypeList, FPid, FMPid, TrueEdge) ->
                             VarListChangeFlag;
                         stmnt14 ->
                             VarListChangeFlag = analyzeStmnt14(ChanList, MtypeList, FPid, FMPid),
-                            VarListChangeFlag
-                        % one_decl ->
+                            VarListChangeFlag;
+                        one_decl ->
+                            VarListChangeFlag = nochange
                     end,
                     generlutility:endfun(FMPid, FPid, Target, VarListChangeFlag),
                     generlutility:write({self(), {nl, ""}}, FPid)
