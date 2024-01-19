@@ -1,5 +1,5 @@
 -module(cs2csprime).
--export([start/4]).
+-export([start/5]).
 -include("record.hrl").
 
 % PGの数分だけLocListにinitialLocを追加し，CS'のイニシャルステートを生成する
@@ -45,7 +45,7 @@ finPGPid([Pid|Pids]) ->
     Pid ! {self(), fin},
     finPGPid(Pids).
 
-start(Numproc, PGList, ChanList, MtypeList) ->
+start(Numproc, PGList, ChanList, MtypeList, GlobalVarList) ->
     SetPid = spawn(fun() -> setmanager:start() end),        %CS'のState,Act,Edgeを管理するモジュールの関数へのプロセス生成
     ChanPidList = genChanPid(ChanList, []),     %チャネルの中身を管理しているモジュールの関数へのプロセス生成
     {PGPidList, PGNameList} = genPGpid(PGList, [], []),
@@ -65,7 +65,7 @@ start(Numproc, PGList, ChanList, MtypeList) ->
     finPGPid(PGPidList),
     IndividualPGEdgeList = separateCSprime:start({States, Acts, Edges}, Numproc, PGNameList),
     io:format("IPGELIST:~p~n", [IndividualPGEdgeList]),
-    csprime2erl:start(CSprime, IndividualPGEdgeList, ChanList, MtypeList).
+    csprime2erl:start(CSprime, IndividualPGEdgeList, ChanList, MtypeList, GlobalVarList).
 
 % start2(Numproc, PGList, ChanList, MtypeList) ->
 %     SetPid = spawn(fun() -> setmanager:start() end),        %CS'のState,Act,Edgeを管理するモジュールの関数へのプロセス生成
