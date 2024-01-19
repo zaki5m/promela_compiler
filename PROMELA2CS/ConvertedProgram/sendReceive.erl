@@ -2,7 +2,7 @@
 -export([start/2, sender/2, receiver/0]).
 
 start([], PidList) ->
-    pidPool(PidList),
+    pidPool(PidList, []),
     fin;
 
 start([ModuleName|ModuleNameList], PidList) ->
@@ -11,21 +11,29 @@ start([ModuleName|ModuleNameList], PidList) ->
     io:format("Pid: ~p~n", [Pid]),
     start(ModuleNameList, [Pid|PidList]).
 
-pidPool([]) ->
+pidPool([], _) ->
     fin;
 
-pidPool(PidList) ->
+pidPool(PidList, GlobalVarList) ->
     io:format("PidList: ~p~n", [PidList]),
     receive 
         {Pid , kill} ->
             NewPidList = lists:delete(Pid, PidList),
-            pidPool(NewPidList);
-        {Pid, Send} ->
+            pidPool(NewPidList, GlobalVarList);
+        {Pid, {send, Send}} ->
             io:format("PidPool: ~p ~p~n", [Pid, Send]),
             lists:foldl(fun (TmpPid, _) -> TmpPid ! {Send, Pid} end, fin, PidList),
-            pidPool(PidList);
+            pidPool(PidList, GlobalVarList);
+        {Pid, {globalVarGet, VarName}} ->
+            VarValue = lists:find(fun ({Var,_}) -> Var == VarName end, GlobalVarList),
+            Pid ! {VarName, VarValue},
+            pidPool(PidList, GlobalVarList);
+        {_, {globalVarPut, VarName, VarValue}} ->
+            TmpGlobalVarList = lists:filter(fun ({Var,_}) -> Var /= VarName end, GlobalVarList),
+            NewGlobalVarList = [{VarName, VarValue}|TmpGlobalVarList],
+            pidPool(PidList, NewGlobalVarList);
         _ -> 
-            pidPool(PidList)
+            pidPool(PidList, GlobalVarList)
     end.
 sender([], _) ->
     receive 
@@ -36,7 +44,7 @@ sender([], _) ->
 
 sender([Send|SendList], ManagerPid) ->
     io:format("Send: ~p~n", [Send]),
-    ManagerPid ! {self(), Send},
+    ManagerPid ! {self(), {send, Send}},
     sender(SendList, ManagerPid).
     
 

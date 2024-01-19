@@ -1,5 +1,5 @@
 -module(generlutility).
--export([getguardvar/2, any_expr/2, write/2, valuelistWrite/2, expr/3, writeListOperationForList/2, genexit/1, moduleSetup/2, declGuardVar/2, declVar/2, startfun/3, endfun/4, varref/1, recfun/3, genSend/2, genReceive/4, send_args/1, recv_args/1]).
+-export([getguardvar/2, any_expr/2, write/2, valuelistWrite/2, expr/3, writeListOperationForList/3, genexit/1, moduleSetup/2, declGuardVar/2, declVar/2, startfun/3, endfun/4, varref/1, recfun/3, genSend/2, genReceive/4, send_args/1, recv_args/1]).
 -include("record.hrl").
 
 %% ガード部分で用いる変数を取得する
@@ -215,12 +215,22 @@ moduleSetup(ModuleName, FPid) ->
 declVar([], _) ->
     fin;
 declVar([Var|Vars], FPid) ->
-    write({self(), {append, "   {_, "}}, FPid),
     TmpVar = atom_to_list(Var),
+    write({self(), {append, "   {_, "}}, FPid),
     write({self(), {append, TmpVar}}, FPid),
-    write({self(), {append, "} = hd(lists:filter(fun(X) -> {Tmpname, _} = X, Tmpname == "}}, FPid),
+    write({self(), {nl, "} ="}}, FPid),
+    write({self(), {append, "   case lists:any(fun(X) -> {Tmpname, _} = X, Tmpname == "}}, FPid),
     write({self(), {append, Var}}, FPid),
-    write({self(), {nl, " end, VarList)),"}}, FPid),
+    write({self(), {nl, " end, VarList) of,"}}, FPid),
+    write({self(), {append, "     true -> hd(lists:filter(fun(X) -> {Tmpname, _} = X, Tmpname == "}}, FPid),
+    write({self(), {append, Var}}, FPid),
+    write({self(), {nl, " end, VarList));"}}, FPid),
+    write({self(), {append, "     false -> PidManager ! {self(), {globalVarGet, "}}, FPid),
+    write({self(), {append, Var}}, FPid),
+    write({self(), {nl, "}},"}}, FPid),
+    write({self(), {nl, "     receive"}}, FPid),
+    write({self(), {nl, "     VarTapl -> VarTapl"}}, FPid),
+    write({self(), {nl, "     end,"}}, FPid),
     declVar(Vars, FPid).
 
 declGuardVar([], _) ->
@@ -234,13 +244,27 @@ declGuardVar([Var|Vars], FPid) ->
     write({self(), {nl, " end, VarList)),"}}, FPid),
     declVar(Vars, FPid).
 
-writeListOperationForList(VarName, FPid) ->
-    write({self(), {append, "   TmpVarList = lists:filter(fun(X) -> {TmpVarname, _} = X, TmpVarname /= "}}, FPid),
+writeListOperationForList(NewValueList, VarName, FPid) ->
+    write({self(), {nl, "   NewVarList = "}}, FPid),
+    write({self(), {append, "      case lists:any(fun(X) -> {Tmpname, _} = X, Tmpname == "}}, FPid),
+    write({self(), {append, VarName}}, FPid),
+    write({self(), {nl, " end, VarList) of"}}, FPid),
+    write({self(), {nl, "      true ->"}}, FPid),
+    write({self(), {append, "        TmpVarList = lists:filter(fun(X) -> {TmpVarname, _} = X, TmpVarname /= "}}, FPid),
     write({self(), {append, VarName}}, FPid),
     write({self(), {nl, " end, VarList),"}}, FPid),
-    write({self(), {append, "   NewVarList = [{"}}, FPid),
+    write({self(), {append, "        [{"}}, FPid),
     write({self(), {append, VarName}}, FPid),
     write({self(), {append, ","}}, FPid),
+    valuelistWrite(NewValueList, FPid),
+    write({self(), {nl, "}|TmpVarList],"}}, FPid),
+    write({self(), {nl, "      false ->"}}, FPid),
+    write({self(), {append, "       ManagerPid ! {self(), {globalVarPut, "}}, FPid),
+    write({self(), {append, VarName}}, FPid),
+    write({self(), {append, ","}}, FPid),
+    valuelistWrite(NewValueList, FPid),
+    write({self(), {nl, "},"}}, FPid),
+    write({self(), {nl, "TmpVarList"}}, FPid),
     fin.
 
 writeReceivePatern([], Source, FPid, FMPid) ->

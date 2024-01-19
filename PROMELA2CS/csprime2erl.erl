@@ -211,9 +211,7 @@ analyzeStmnt8(_ , ActChild, _, MtypeList, FPid, FMPid) when ActChild#tree.value 
     NewValueList = lists:map(fun(X) -> case is_atom(X) of true -> atom_to_list(X); false -> X end end, ValueList),
     % startfun(FMPid, FPid, Source),
     generlutility:declVar(VarList, FPid),
-    generlutility:writeListOperationForList(Varname, FPid),
-    generlutility:valuelistWrite(NewValueList, FPid),
-    generlutility:write({self(), {nl, "}|TmpVarList],"}}, FPid),
+    generlutility:writeListOperationForList(NewValueList,Varname, FPid),
     changed;
 
 analyzeStmnt8(_, ActChild, ChanList, MtypeList, FPid, FMPid) when ActChild#tree.value == expr1 ->
