@@ -4,38 +4,42 @@
 -include("record.hrl").
 
 start(Tree) ->
-    {Numproc, PGList, ChanList, MtypeList} = spec(Tree),
-    io:format("~p~n", [PGList]),
+    {Numproc, PGList, ChanList, MtypeList, GlobalVarList} = spec(Tree),
+    % io:format("ChanList:~p~nMtypeList:~p~nGlobalVarList:~p~n", [ChanList, MtypeList, GlobalVarList]),
     {ok, Out1} = file:open("CSedges.out", write),
     file:write_file("CSedges", PGList),
     file:close(Out1),
-    cs2csprime:start(Numproc, PGList, ChanList, MtypeList).
+    cs2csprime:start(Numproc, PGList, ChanList, MtypeList, GlobalVarList).
 
 start2(Tree) ->
-    {Numproc, PGList, ChanList, MtypeList} = spec(Tree),
-    io:format("~p~p~n", [MtypeList, PGList]).
+    {_, PGList, ChanList, MtypeList, GlobalVarList} = spec(Tree),
+    io:format("~p~n", [PGList]),
+    % {ok, Out1} = file:open("CSedges.out", write),
+    % file:write_file("CSedges", PGList),
+    % file:close(Out1),
+    cs2erl:start(PGList, ChanList, MtypeList).
 
 spec(Tree) ->
     Module = Tree#tree.children,
-    {Numproc, PGList, ChanList, MtypeList} = module(Module, 0, [], [], []),
-    {Numproc, PGList, ChanList, MtypeList}.
+    {Numproc, PGList, ChanList, MtypeList, GlobalVarList} = module(Module, 0, [], [], [], []),
+    {Numproc, PGList, ChanList, MtypeList, GlobalVarList}.
 
 % list([module]) -> atom
 % Moduleのリストの各要素を見てプロセスならPG生成の関数へ
-module([], Numproc, PGList, ChanList, MtypeList) ->
-    {Numproc, PGList, ChanList, MtypeList};
-module([Module|Modules], Numproc, PGList, ChanList, MtypeList) ->
+module([], Numproc, PGList, ChanList, MtypeList, GlobalVarList) ->
+    {Numproc, PGList, ChanList, MtypeList, GlobalVarList};
+module([Module|Modules], Numproc, PGList, ChanList, MtypeList, GlobalVarList) ->
     Child = Module#tree.children,
     case Child of
         [_|_] ->                                        % decl_lst
             Pid = spawn(fun() -> setmanager:addchan([]) end),
-            decl_lst(Child, Pid),
+            NewGlobalVarList = decl_lst(Child, GlobalVarList, Pid),
             Pid ! {self(), fin},
             receive
                 {Pid, Chan} ->
                     NewChanList = ChanList ++ Chan
             end,
-            module(Modules, Numproc, PGList, NewChanList, MtypeList);
+            module(Modules, Numproc, PGList, NewChanList, MtypeList, NewGlobalVarList);
         %プロセスならPG生成の関数へ
         Proc when Proc#tree.value =:= proctype orelse Proc#tree.value =:= init ->       %proctype, init
             Pid = spawn(fun setmanager:start/0),
@@ -46,7 +50,7 @@ module([Module|Modules], Numproc, PGList, ChanList, MtypeList) ->
                 PG = {ProcName, {Loc, Act, Arrow}},
                 NewPGList = PGList ++ [PG]
             end,
-            module(Modules, Numproc+1, NewPGList, ChanList, MtypeList);
+            module(Modules, Numproc+1, NewPGList, ChanList, MtypeList, GlobalVarList);
         Decl when Decl#tree.value =:= mtype ->     % utype, mtype
             Pid = spawn(fun() -> setmanager:addmtype([]) end),
             NameList = Decl#tree.children,
@@ -56,7 +60,7 @@ module([Module|Modules], Numproc, PGList, ChanList, MtypeList) ->
                 {Pid, Mtype} ->
                     NewMtypeList = MtypeList ++ Mtype
             end,
-            module(Modules, Numproc, PGList, ChanList, NewMtypeList);
+            module(Modules, Numproc, PGList, ChanList, NewMtypeList, GlobalVarList);
         _ ->
             io:format("module is neither a process nor declaration: ~p~n", [Child#tree.value])
     end.
@@ -76,26 +80,39 @@ mtype([NameTree|Names], Pid) ->
     my_utility:addmtype(Name, Pid),
     mtype(Names, Pid).
 
-decl_lst([], _) ->
-    fin;
-decl_lst([One_decl|One_decls], Pid) ->
+decl_lst([], GlobalVarList, _) ->
+    GlobalVarList;
+decl_lst([One_decl|One_decls], GlobalVarList, Pid) ->
     One_declChild  = One_decl#tree.children,
+    io:format("One_declChild:~p~n", [One_declChild]),
     TypenameTree = hd(lists:nth(2, One_declChild)),
     case TypenameTree#tree.children of
         chan ->
             Ivar = lists:nth(3, One_declChild),
-            ivar(Ivar, Pid);
+            ivar(Ivar, Pid, chan),
+            decl_lst(One_decls,GlobalVarList, Pid);
         _ ->
-            pass
-    end,
-    decl_lst(One_decls, Pid).
+            Ivar = lists:nth(3, One_declChild),
+            NewGlobalVarList = ivar(Ivar, Pid, GlobalVarList),
+            decl_lst(One_decls,NewGlobalVarList, Pid)
+    end.
 
-ivar([], _) ->
-    fin;
-ivar([Ivar|Ivars], Pid) ->
+ivar([], _, chan) ->
+    [];
+ivar([], _, GlobalVarList) ->
+    GlobalVarList;
+ivar([Ivar|Ivars], Pid, chan) ->
     IvarChild = Ivar#tree.children,
     channame(hd(IvarChild), Pid),
-    ivar(Ivars, Pid).
+    ivar(Ivars, Pid, chan);
+ivar([Ivar|Ivars], Pid, GlobalVarList) ->
+    IvarChild = Ivar#tree.children,
+    % io:format("IvarChild:~p~n", [IvarChild]),
+    Tmp1 = hd(IvarChild),
+    Tmp2 = hd(Tmp1),
+    Varname = Tmp2#tree.children,
+    NewGlobalVarList = [Varname | GlobalVarList],
+    ivar(Ivars, Pid, NewGlobalVarList).
 
 channame([], _) ->
     fin;

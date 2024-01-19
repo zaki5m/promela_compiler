@@ -1,5 +1,5 @@
 -module(csprime2erl).
--export([start/4]).
+-export([start/5]).
 -include("record.hrl").
 
 % checkSR(Tree) ->
@@ -15,7 +15,7 @@
 %             notsr
 %     end.
 
-start(CSprime, IndividualPGEdgeList, ChanList, MtypeList) ->
+start(CSprime, IndividualPGEdgeList, ChanList, MtypeList, GlobalVarList) ->
     {State, Act, Edge} = CSprime,
     generl(Edge,IndividualPGEdgeList, ChanList, MtypeList).
 
@@ -42,6 +42,7 @@ generl(CSprimeEdges, [PGEdge|PGEdges], ChanList, MtypeList) ->
             io:format("Ffin")
     end,
     generl(CSprimeEdges, PGEdges, ChanList, MtypeList).
+
 genmodule([], _, _, _, _, _) ->
     fin;
 genmodule([Edge|Edges], ChanList, MtypeList, CSprimeEdges, FPid, FMPid) ->
