@@ -1,5 +1,5 @@
 -module(generlutility).
--export([getguardvar/2, any_expr/2, write/2, valuelistWrite/2, expr/3, writeListOperationForList/2, genexit/1, moduleSetup/2, declGuardVar/2, declVar/2, startfun/3, endfun/4, varref/1, recfun/3, genSend/2, genReceive/4, send_args/1]).
+-export([getguardvar/2, any_expr/2, write/2, valuelistWrite/2, expr/3, writeListOperationForList/2, genexit/1, moduleSetup/2, declGuardVar/2, declVar/2, startfun/3, endfun/4, varref/1, recfun/3, genSend/2, genReceive/4, send_args/1, recv_args/1]).
 -include("record.hrl").
 
 %% ガード部分で用いる変数を取得する
@@ -158,7 +158,7 @@ startfun(FMPid, FPid, Source) ->
             % io:format("~p~n", [Funname]),
             write({self(), {append, f}}, FPid),
             write({self(), {append, Funname}}, FPid),
-            write({self(), {nl, "(VarList) ->"}}, FPid)
+            write({self(), {nl, "(VarList,ManagerPid) ->"}}, FPid)
     end.
 
 endfun(FMPid, FPid, Target, VarListChangeFlag) ->
@@ -166,8 +166,8 @@ endfun(FMPid, FPid, Target, VarListChangeFlag) ->
     case Loc of
         exit ->
             write({self(), {append, "   "}}, FPid),
-            write({self(), {append, exit}}, FPid),
-            write({self(), {append, "()"}}, FPid);
+            write({self(), {append, exitFun}}, FPid),
+            write({self(), {append, "(ManagerPid)"}}, FPid);
         _ ->
             FMPid ! {self(), {deffun, Target}},
             receive
@@ -177,9 +177,9 @@ endfun(FMPid, FPid, Target, VarListChangeFlag) ->
                     write({self(), {append, Funname}}, FPid),
                     case VarListChangeFlag of
                         nochange ->
-                            write({self(), {append, "(VarList)"}}, FPid);
+                            write({self(), {append, "(VarList,ManagerPid)"}}, FPid);
                         changed ->
-                            write({self(), {append, "(NewVarList)"}}, FPid)
+                            write({self(), {append, "(NewVarList,ManagerPid)"}}, FPid)
                     end
             end
     end.
@@ -192,24 +192,25 @@ recfun(FMPid, FPid, Source) ->
             % io:format("~p~n", [Funname]),
             write({self(), {append, f}}, FPid),
             write({self(), {append, Funname}}, FPid),
-            write({self(), {append, "(VarList)"}}, FPid)
+            write({self(), {nl, "(VarList,ManagerPid)"}}, FPid)
     end.
 
 genexit(FPid) ->
-    write({self(), {append, exit}}, FPid),
+    write({self(), {append, exitFun}}, FPid),
     % write({self(), {nl, "(GPid) ->"}}, FPid),
-    write({self(), {nl, "() ->"}}, FPid),
-    write({self(), {append, "   fin."}}, FPid).
+    write({self(), {nl, "(ManagerPid) ->"}}, FPid),
+    write({self(), {nl, "   ManagerPid ! { self(), kill },"}}, FPid),
+    write({self(), {nl, "   fin."}}, FPid).
 
 moduleSetup(ModuleName, FPid) ->
     write({self(), {append, "-module("}}, FPid),
     write({self(), {append, ModuleName}}, FPid),
     write({self(), {nl, ")."}}, FPid),
-    write({self(), {nl, "-export([start/0])."}}, FPid),
-    write({self(), {nl, "start() ->"}}, FPid),
+    write({self(), {nl, "-export([start/1])."}}, FPid),
+    write({self(), {nl, "start(ManagerPid) ->"}}, FPid),
     % write({self(), {nl, "   GPid = spawn(fun() -> globalvarmanager:loop() end),"}}, FPid),
     % write({self(), {nl, "   f0(GPid)."}}, FPid).
-    write({self(), {nl, "   f0([])."}}, FPid).
+    write({self(), {nl, "   f0([],ManagerPid)."}}, FPid).
 
 declVar([], _) ->
     fin;
@@ -246,8 +247,7 @@ writeReceivePatern([], Source, FPid, FMPid) ->
     write({self(), {nl, "      {_, Pid} ->"}}, FPid),
     write({self(), {nl, "         Pid ! { self() , no},"}}, FPid),
     write({self(), {append, "          "}}, FPid),
-    write({self(), {nl, recfun(FMPid, FPid, Source)}}, FPid),% パターンにマッチしなかった場合はloopする
-    fin;
+    recfun(FMPid, FPid, Source);% パターンにマッチしなかった場合はloopする
 
 writeReceivePatern([Patern | PaternList], Source, FPid, FMPid) ->
     {Buffer, Value} = Patern,
@@ -256,8 +256,13 @@ writeReceivePatern([Patern | PaternList], Source, FPid, FMPid) ->
     write({self(), {append, " , "}}, FPid),
     write({self(), {append, Value}}, FPid),
     write({self(), {nl, " } , Pid } ->"}}, FPid),
-    write({self(), {nl, "         Pid ! { self(), ok }"}}, FPid),
-    write({self(), {nl, "         fin;"}}, FPid),
+    write({self(), {nl, "         Pid ! { self(), ok },"}}, FPid),
+    write({self(), {nl, "         IsReceive = sendReceive:receiver(),"}}, FPid),
+    write({self(), {nl, "         case IsReceive of"}}, FPid),
+    write({self(), {nl, "           true -> fin;"}}, FPid),
+    write({self(), {append, "           false -> "}}, FPid),
+    recfun(FMPid, FPid, Source),
+    write({self(), {nl, "         end;"}}, FPid),
     writeReceivePatern(PaternList, Source, FPid, FMPid).
 
 
@@ -265,11 +270,34 @@ writeReceivePatern([Patern | PaternList], Source, FPid, FMPid) ->
 % {buffer, 値}の形式である
 % 例: [{c, 1}, {d, 2}, {c, 3}]
 genReceive(PaternList, Source, FPid, FMPid) -> 
-    write({self(), {append, "   receive"}}, FPid),
+    write({self(), {nl, "   receive"}}, FPid),
     writeReceivePatern(PaternList, Source, FPid, FMPid),
     write({self(), {nl, "   end,"}}, FPid).
 
-writeSendPatern([], FPid) ->
+recv_args(RecvArgs) ->
+    Value = RecvArgs#tree.value,
+    RecvArgsChild = RecvArgs#tree.children,
+    case Value of
+        recv_args1 -> 
+            NameOrConst = recv_arg(hd(hd(RecvArgsChild))),
+            NameOrConst;
+        recv_args2 -> 
+            a
+    end.
+
+recv_arg(RecvArg) -> 
+    Value = RecvArg#tree.value,
+    RecvArgChild = RecvArg#tree.children,
+    case Value of
+        recv_arg1 ->
+            Name = varref(RecvArgChild),
+            Name;
+        recv_arg3 ->
+            {_,_,Const} = hd(lists:filter(fun({_,X,_}) -> X == const end, RecvArgChild)),
+            Const
+    end.
+
+writeSendPatern([], _) ->
     fin;
 
 writeSendPatern([Patern | PaternList], FPid) ->
@@ -292,11 +320,10 @@ genSend(PaternList, FPid) ->
     %まずはsender用の関数をspawnする
     write({self(), {append, "   SendList = ["}}, FPid),
     writeSendPatern(PaternList, FPid),
-    write({self(), {nl, "   _ = spawn(fun () -> sendReceive:sender(SendList) end),"}}, FPid),
+    write({self(), {nl, "   _ = spawn(fun () -> sendReceive:sender(SendList,ManagerPid) end),"}}, FPid),
     fin.
 
 send_args(SendArgs) ->
-    io:format("SendArgs: ~p~n", [SendArgs]),
     Value = SendArgs#tree.value,
     SendArgsChild = SendArgs#tree.children,
     case Value of

@@ -24,7 +24,7 @@ generl(_, [], _, _) ->
     fin;
 generl(CSprimeEdges, [PGEdge|PGEdges], ChanList, MtypeList) ->
     {ModuleName, Edges} = PGEdge,
-    File = erlwriter:openfile(),
+    File = erlwriter:openfile(ModuleName),
     FMPid = spawn(fun() -> funmanager:start(0) end),
     FPid = spawn(fun() -> erlwriter:filewrite(File) end),
     generlutility:moduleSetup(ModuleName, FPid),
@@ -115,7 +115,7 @@ defFunwithGuard(Source, [], ChanList, MtypeList, FPid, FMPid, TrueEdge) ->
             writeguard(Guard, ChanList, MtypeList, FPid, FMPid),
             case Act of
                 skip ->
-                    generlutility:endfun(FMPid, FPid, Target, nochage);
+                    generlutility:endfun(FMPid, FPid, Target, nochange);
                 _ ->
                     case Act#tree.value of
                         stmnt10 ->              %break
@@ -151,7 +151,7 @@ defFunwithGuard(Source, [Edge|Edges],ChanList, MtypeList, FPid, FMPid, TrueEdge)
             writeguard(Guard, ChanList, MtypeList, FPid, FMPid),
             case Act of
                 skip ->
-                    generlutility:endfun(FMPid, FPid, Target, nochage);
+                    generlutility:endfun(FMPid, FPid, Target, nochange);
                 _ ->
                     case Act#tree.value of
                         stmnt10 ->              %break
@@ -251,7 +251,8 @@ analyzeStmnt8(_, ActChild, _, MtypeList, FPid, FMPid) when ActChild#tree.value =
 analyzeStmnt8(Source, ActChild, _, MtypeList, FPid, FMPid) when ActChild#tree.value == receive1 ->
     Send2Child = ActChild#tree.children,
     ChanName = generlutility:varref(hd(Send2Child)),
-    io:format("ChanName:~p, ~p~n", [ChanName, Send2Child]),
+    Name = generlutility:recv_args(lists:nth(2, Send2Child)), %後でvarrefに対応させる
+    generlutility:genReceive([{ChanName, Name}], Source, FPid, FMPid),
     nochange;
 
 

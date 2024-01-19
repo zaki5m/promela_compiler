@@ -11,12 +11,23 @@ abstractIthPG(Edge, I) ->
     NewEdge = {{IthSLoc,SChanList}, ActLabel, {IthTLoc, TChanList}},
     NewEdge.
 
-% removeSameEdge(EdgeList) ->
+removeSameEdge([], ExistEdgeList) ->
+    ExistEdgeList;
+
+removeSameEdge([Edge|Edges], ExistEdgeList) ->
+    {{SourceLoc, _}, _, {TargetLoc, _}} = Edge,
+    case lists:any(fun(X) -> {{TmpSourceLoc, _}, _, {TmpTargetLoc, _}} = X, {SourceLoc, TargetLoc} == {TmpSourceLoc, TmpTargetLoc} end, ExistEdgeList) of
+        true ->
+            removeSameEdge(Edges, ExistEdgeList);
+        false ->
+            removeSameEdge(Edges, [Edge|ExistEdgeList])
+    end.
 
 start(CSprime, NumProc, PGNameList) ->
     {_, _, Edges} = CSprime,
     IndividualPGEdgeList = separater(Edges, NumProc, 1, [], PGNameList),
-    IndividualPGEdgeList.
+    NewIndividualPGEdgeList = lists:map(fun(X) -> {ModuleName, TmpEdges} = X, {ModuleName, removeSameEdge(lists:filter(fun(Y) -> {{SourceLoc, _}, _ , {TargetLoc, _}} = Y, SourceLoc /= TargetLoc end, TmpEdges), [])} end, IndividualPGEdgeList),
+    NewIndividualPGEdgeList.
 
 separater(_, NumProc, I, IndividualPGEdgeList, _) when I > NumProc ->
     IndividualPGEdgeList;

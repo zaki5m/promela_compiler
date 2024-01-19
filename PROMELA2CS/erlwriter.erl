@@ -1,8 +1,11 @@
 -module(erlwriter).
--export([openfile/0, closefile/1, filewrite/1]).
+-export([openfile/1, closefile/1, filewrite/1]).
 
-openfile() ->
-    {ok, File} = file:open("tmp.erl", [write, append]),
+openfile(ModuleName) ->
+    FileName = atom_to_list(ModuleName) ++ ".erl",
+    NewFileName = "ConvertedProgram/" ++ FileName,
+    file:delete(NewFileName),
+    {ok, File} = file:open(NewFileName, [write, append]),
     File.
 
 closefile(File) ->

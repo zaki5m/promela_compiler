@@ -25,3 +25,6 @@
     * PROMELA2CSで `make`
     * ``make go`` ``make pr`` ``make cs`` で色々できる
 
+# 制約
+* 変数は大文字始まり，チャネル変数は小文字
+
