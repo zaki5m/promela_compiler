@@ -202,7 +202,8 @@ genexit(FPid) ->
     write({self(), {nl, "   ManagerPid ! { self(), kill },"}}, FPid),
     write({self(), {nl, "   fin."}}, FPid).
 
-globalVarListWrite([], _) ->
+globalVarListWrite([], FPid) ->
+    write({self(), {append, "]"}}, FPid),
     fin;
 
 globalVarListWrite([{Var, Value}|Vars], FPid) ->
@@ -210,16 +211,14 @@ globalVarListWrite([{Var, Value}|Vars], FPid) ->
     write({self(), {append, Var}}, FPid),
     write({self(), {append, ", "}}, FPid),
     write({self(), {append, Value}}, FPid),
-    write({self(), {nl, "}"}}, FPid),
+    write({self(), {append, "}"}}, FPid),
     case Vars of
         [] ->
-            write({self(), {nl, "],"}}, FPid),
-            fin;
+            globalVarListWrite(Vars, FPid);
         _ ->
             write({self(), {append, ","}}, FPid),
             globalVarListWrite(Vars, FPid)
-    end,
-    globalVarListWrite(Vars, FPid).
+    end.
 
 moduleSetup(ModuleName, GlobalVarList, FPid) ->
     write({self(), {append, "-module("}}, FPid),
@@ -227,8 +226,9 @@ moduleSetup(ModuleName, GlobalVarList, FPid) ->
     write({self(), {nl, ")."}}, FPid),
     write({self(), {nl, "-export([start/1])."}}, FPid),
     write({self(), {nl, "start(ManagerPid) ->"}}, FPid),
-    write({self(), {nl, "   ManagerPid ! { self(), {globalVarPutList, ["}}, FPid),
+    write({self(), {append, "   ManagerPid ! { self(), {globalVarPutList, ["}}, FPid),
     globalVarListWrite(GlobalVarList, FPid),
+    write({self(), {nl, "}},"}}, FPid),
     % write({self(), {nl, "   GPid = spawn(fun() -> globalvarmanager:loop() end),"}}, FPid),
     % write({self(), {nl, "   f0(GPid)."}}, FPid).
     write({self(), {nl, "   f0([],ManagerPid)."}}, FPid).
@@ -237,20 +237,27 @@ declVar([], _) ->
     fin;
 declVar([Var|Vars], FPid) ->
     TmpVar = atom_to_list(Var),
+    write({self(), {append, "   ManagerPid ! {self(), {globalVarGet, "}}, FPid),
+    write({self(), {append, Var}}, FPid),
+    write({self(), {nl, "}},"}}, FPid),
     write({self(), {append, "   {_, "}}, FPid),
     write({self(), {append, TmpVar}}, FPid),
     write({self(), {nl, "} ="}}, FPid),
-    write({self(), {append, "   case lists:any(fun(X) -> {Tmpname, _} = X, Tmpname == "}}, FPid),
-    write({self(), {append, Var}}, FPid),
-    write({self(), {nl, " end, VarList) of,"}}, FPid),
-    write({self(), {append, "     true -> hd(lists:filter(fun(X) -> {Tmpname, _} = X, Tmpname == "}}, FPid),
+    write({self(), {nl, "   receive"}}, FPid),
+    write({self(), {nl, "      {_, undefined} ->"}}, FPid),
+    write({self(), {append, "     hd(lists:filter(fun(X) -> {Tmpname, _} = X, Tmpname == "}}, FPid),
     write({self(), {append, Var}}, FPid),
     write({self(), {nl, " end, VarList));"}}, FPid),
-    write({self(), {append, "     false -> PidManager ! {self(), {globalVarGet, "}}, FPid),
-    write({self(), {append, Var}}, FPid),
-    write({self(), {nl, "}},"}}, FPid),
-    write({self(), {nl, "     receive"}}, FPid),
-    write({self(), {nl, "     VarTapl -> VarTapl"}}, FPid),
+    write({self(), {append, "   {TmpVarName"}}, FPid),
+    write({self(), {append, TmpVar}}, FPid),
+    write({self(), {append, ", TmpVarValue"}}, FPid),
+    write({self(), {append, TmpVar}}, FPid),
+    write({self(), {nl, "} -> "}}, FPid),
+    write({self(), {append, "     {TmpVarName"}}, FPid),
+    write({self(), {append, TmpVar}}, FPid),
+    write({self(), {append, ", TmpVarValue"}}, FPid),
+    write({self(), {append, TmpVar}}, FPid),
+    write({self(), {nl, "}"}}, FPid),
     write({self(), {nl, "     end,"}}, FPid),
     declVar(Vars, FPid).
 
@@ -278,14 +285,14 @@ writeListOperationForList(NewValueList, VarName, FPid) ->
     write({self(), {append, VarName}}, FPid),
     write({self(), {append, ","}}, FPid),
     valuelistWrite(NewValueList, FPid),
-    write({self(), {nl, "}|TmpVarList],"}}, FPid),
+    write({self(), {nl, "}|TmpVarList];"}}, FPid),
     write({self(), {nl, "      false ->"}}, FPid),
     write({self(), {append, "       ManagerPid ! {self(), {globalVarPut, "}}, FPid),
     write({self(), {append, VarName}}, FPid),
     write({self(), {append, ","}}, FPid),
     valuelistWrite(NewValueList, FPid),
-    write({self(), {nl, "},"}}, FPid),
-    write({self(), {nl, "TmpVarList"}}, FPid),
+    write({self(), {nl, "}}"}}, FPid),
+    write({self(), {nl, " end,"}}, FPid),
     fin.
 
 writeReceivePatern([], Source, FPid, FMPid) ->

@@ -25,9 +25,16 @@ pidPool(PidList, GlobalVarList) ->
             lists:foldl(fun (TmpPid, _) -> TmpPid ! {Send, Pid} end, fin, PidList),
             pidPool(PidList, GlobalVarList);
         {Pid, {globalVarGet, VarName}} ->
-            VarValue = lists:find(fun ({Var,_}) -> Var == VarName end, GlobalVarList),
-            Pid ! {VarName, VarValue},
-            pidPool(PidList, GlobalVarList);
+            VarValueList = lists:filter(fun ({Var,_}) -> Var == VarName end, GlobalVarList),
+            case VarValueList of
+                [] ->
+                    Pid ! {VarName, undefined},
+                    pidPool(PidList, GlobalVarList);
+                _ ->
+                    {_, VarValue} = hd(VarValueList),
+                    Pid ! {VarName, VarValue},
+                    pidPool(PidList, GlobalVarList)
+            end;
         {_, {globalVarPut, VarName, VarValue}} ->
             TmpGlobalVarList = lists:filter(fun ({Var,_}) -> Var /= VarName end, GlobalVarList),
             NewGlobalVarList = [{VarName, VarValue}|TmpGlobalVarList],
