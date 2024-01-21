@@ -83,8 +83,19 @@ defFun(ActLabel, ChanList, MtypeList, FPid, FMPid) ->
                     VarListChangeFlag;
                 stmnt14 ->
                     VarListChangeFlag = analyzeStmnt14(ChanList, MtypeList, FPid, FMPid),
-                    VarListChangeFlag
-                % one_decl ->
+                    VarListChangeFlag;
+                one_decl ->
+                    One_declChild = Act#tree.children,
+                    IvarTree = lists:nth(3, One_declChild),
+                    VarList = generlutility:ivars(IvarTree, []),
+                    case VarList of
+                        [] ->
+                            nochange;
+                        _ ->
+                            generlutility:write({self(), {append, "   NewVarList = VarList "}}, FPid),
+                            generlutility:writeAddVarList(VarList, FPid),
+                            changed
+                    end
             end
         % _ ->
         %     writeguard(Guard, ChanList, MtypeList, FPid, FMPid),
@@ -131,8 +142,19 @@ defFunwithGuard([], ChanList, MtypeList, FPid, FMPid, TrueEdge) ->
                             VarListChangeFlag;
                         stmnt14 ->
                             VarListChangeFlag = analyzeStmnt14(ChanList, MtypeList, FPid, FMPid),
-                            VarListChangeFlag
-                        % one_decl ->
+                            VarListChangeFlag;
+                        one_decl ->
+                            One_declChild = Act#tree.children,
+                            IvarTree = lists:nth(3, One_declChild),
+                            VarList = generlutility:ivars(IvarTree, []),
+                            case VarList of
+                                [] ->
+                                    VarListChangeFlag = nochange;
+                                _ ->
+                                    generlutility:write({self(), {append, "   NewVarList = VarList "}}, FPid),
+                                    generlutility:writeAddVarList(VarList, FPid),
+                                    VarListChangeFlag = changed
+                            end
                     end,
                     generlutility:endfun(FMPid, FPid, Target, VarListChangeFlag),
                     generlutility:write({self(), {nl, ""}}, FPid)
@@ -141,6 +163,7 @@ defFunwithGuard([], ChanList, MtypeList, FPid, FMPid, TrueEdge) ->
     end;
 defFunwithGuard([Edge|Edges],ChanList, MtypeList, FPid, FMPid, TrueEdge) ->
     {_, {Guard, Act}, Target} = Edge,
+    io:format("Guard:~p~n", [Guard]),
     case Guard of
         true ->
             NewTrueEdge =  [Edge|TrueEdge],

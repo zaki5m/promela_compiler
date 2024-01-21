@@ -1,5 +1,5 @@
 -module(generlutility).
--export([getguardvar/2, any_expr/2, write/2, valuelistWrite/2, expr/3, writeListOperationForList/2, genexit/1, moduleSetup/2, declGuardVar/2, declVar/2, startfun/3, endfun/4, varref/1]).
+-export([getguardvar/2, any_expr/2, write/2, ivars/2, valuelistWrite/2, expr/3, writeListOperationForList/2, genexit/1, moduleSetup/2, declGuardVar/2, declVar/2, startfun/3, endfun/4, varref/1, writeAddVarList/2]).
 -include("record.hrl").
 
 %% ガード部分で用いる変数を取得する
@@ -49,6 +49,29 @@ expr(ExprTree, FPid, Flag) when ExprTree#tree.value == expr2 ->
     expr(Expr2Child, FPid, Flag),
     write({self(), {nl, "   )"}}, FPid).
 
+ivars([], VarList) ->
+    VarList;
+ivars([Ivar|Ivars], VarList) ->
+    IvarChild = Ivar#tree.children,
+    Tmp = lists:nth(1, IvarChild),
+    NameTree = hd(Tmp),
+    Tmp2 = lists:nth(3, IvarChild),
+    case is_list(Tmp2) of
+        false ->
+            ivars(Ivars, VarList);
+        true ->
+            ValueTree = hd(Tmp2),
+            Tmp3 = ValueTree#tree.children,
+            NewVarList = [{NameTree#tree.children, Tmp3#tree.children}|VarList],
+            ivars(Ivars, NewVarList)
+    end.
+
+writeAddVarList([], FPid) ->
+    write({self(), {nl, ","}}, FPid);
+writeAddVarList([Var|Vars], FPid) ->
+    write({self(), {append, "++ "}}, FPid),
+    write({self(), {append, Var}}, FPid),
+    writeAddVarList(Vars, FPid).
 
 %% expr内での値のリストと変数のリストを返す
 any_expr(Any_exprTree, VarList) ->
@@ -57,7 +80,6 @@ any_expr(Any_exprTree, VarList) ->
     case Tmp#tree.value of
         any_expr1 ->
             Any_exprChild = Tmp#tree.children,
-            io:format("Any1:~p~n", [Any_exprChild]),
             {TmpList, NewVarList} = any_expr(Any_exprChild, VarList),
             NewValueList = ['('] ++ TmpList ++ [')'],
             {NewValueList, NewVarList};
