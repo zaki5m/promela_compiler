@@ -51,6 +51,7 @@ genmodule([Edge|Edges], ChanList, MtypeList, CSprimeEdges, FPid, FMPid) ->
     {TmpList, NewEdges} = lists:partition(fun(X) -> {TmpS, _, _} = X, TmpS == Source end, Edges),
     SameSourceEdgeList = [Edge | TmpList],
     GuardVarList = generlutility:getguardvar(SameSourceEdgeList, []),
+    lists:filter(fun(X) -> (MtypeList == []) or lists:any(fun(Y) -> X /= Y end, MtypeList) end, GuardVarList),
     generlutility:startfun(FMPid, FPid, Source),
     generlutility:declGuardVar(GuardVarList, FPid),
     case length(TmpList) of
@@ -215,11 +216,11 @@ writeguard(Guard, ChanList, MtypeList, FPid, FMPid) ->
             generlutility:write({self(), {nl, "   true ->"}}, FPid),
             generlutility:write({self(), {append, "       "}}, FPid);
         stmnt4guard2 when GuardChild#tree.value == expr1 ->
-            generlutility:expr(GuardChild, FPid, guard);
+            generlutility:expr(GuardChild, MtypeList, FPid, guard);
             % guardvaluelistWrite(NewValueList, FPid);
         stmnt4guard2 when GuardChild#tree.value == expr2 ->
             generlutility:write({self(), {nl, "   ("}}, FPid),
-            generlutility:expr(GuardChild, FPid, guard),
+            generlutility:expr(GuardChild, MtypeList, FPid, guard),
             generlutility:write({self(), {nl, "   )"}}, FPid)
     end.
 
@@ -248,7 +249,7 @@ analyzeStmnt8(_, ActChild, ChanList, MtypeList, FPid, FMPid) when ActChild#tree.
     % generlutility:write({self(), {append, "   "}}, FPid),
     % generlutility:valuelistWrite(NewValueList, FPid),
     % generlutility:write({self(), {nl, ","}}, FPid),
-    generlutility:expr(ActChild, FPid, act),
+    generlutility:expr(ActChild, MtypeList, FPid, act),
     nochange;
 
 analyzeStmnt8(_, ActChild, ChanList, MtypeList, FPid, FMPid) when ActChild#tree.value == expr2 ->
@@ -256,7 +257,7 @@ analyzeStmnt8(_, ActChild, ChanList, MtypeList, FPid, FMPid) when ActChild#tree.
     % generlutility:write({self(), {nl, "   ("}}, FPid),
     % VarListChangeFlag = analyzeStmnt8(Expr2Child, ChanList, MtypeList, FPid, FMPid),
     % generlutility:write({self(), {nl, "   )"}}, FPid),
-    generlutility:expr(ActChild, FPid, act),
+    generlutility:expr(ActChild, MtypeList, FPid, act),
     nochange;
 
 % analyzeStmnt8(ActChild, ChanList, MtypeList, FPid, FMPid, Source, Target) when ActChild#tree.value == expr3 ->
