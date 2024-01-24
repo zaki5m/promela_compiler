@@ -1,5 +1,5 @@
 -module(generlutility4cs2erl).
--export([getguardvar/2, any_expr/2, write/2, valuelistWrite/2, expr/4, writeListOperationForList/2, genexit/1, moduleSetup/3, declGuardVar/2, declVar/2, startfun/3, endfun/4, varref/1, send_args/1, ivars/2, writeAddVarList/2, recv_args/1]).
+-export([getguardvar/2, any_expr/2, write/2, valuelistWrite/2, expr/5, writeListOperationForList/2, genexit/1, moduleSetup/4, declGuardVar/3, declVar/2, startfun/3, endfun/4, varref/1, send_args/3, ivars/2, writeAddVarList/2, recv_args/1, writeGetGlobalVar/2]).
 -include("record.hrl").
 
 %% ガード部分で用いる変数を取得する
@@ -27,18 +27,21 @@ getguardvar([Edge|Edges], VarList) ->
             end
     end.
 
-expr(ExprTree,MtypeList, FPid, Flag) when ExprTree#tree.value == expr1 ->
+expr(ExprTree, MtypeList, GlobalVarList, FPid, Flag) when ExprTree#tree.value == expr1 ->
     Expr1Child = ExprTree#tree.children,
     {ValueList, TmpVarList} = any_expr(Expr1Child, []),
-    % io:format("TmpVarList:~p~n", [TmpVarList]),
-    % io:format("MtypeList:~p~n", [MtypeList]),
-    VarList = lists:filter(fun(X) -> (MtypeList == []) or lists:any(fun(Y) -> Y /= X end, MtypeList) end, lists:usort(TmpVarList)),
-    % io:format("VarList:~p~n", [VarList]),
+    io:format("TmpVarList:~p~n", [TmpVarList]),
+    io:format("MtypeList:~p~n", [MtypeList]),
+    VarList = lists:filter(fun(X) -> (MtypeList == []) or not(lists:any(fun(Y) -> Y == X end, MtypeList)) end, lists:usort(TmpVarList)),
+    io:format("VarList:~p~n", [VarList]),
+    LocalVarList = lists:filter(fun(X) -> not(lists:any(fun({First, _}) -> First == X end, GlobalVarList)) end, VarList),
+    UseGlobalVarList = lists:filter(fun(X) -> lists:any(fun({First, _}) -> First == X end, GlobalVarList) end, VarList),
     NewValueList = lists:map(fun(X) -> case is_atom(X) of true -> atom_to_list(X); false -> X end end, ValueList),
     % io:format("NewValueList:~p~n", [NewValueList]),
     case Flag of
         act ->
-            declVar(VarList, FPid),
+            writeGetGlobalVar(UseGlobalVarList, FPid),
+            declVar(LocalVarList, FPid),
             write({self(), {append, "   "}}, FPid),
             valuelistWrite(NewValueList, FPid),
             write({self(), {nl, ","}}, FPid);
@@ -47,10 +50,10 @@ expr(ExprTree,MtypeList, FPid, Flag) when ExprTree#tree.value == expr1 ->
             guardvaluelistWrite(NewValueList, VarList, FPid),
             write({self(), {nl, " ->"}}, FPid)
     end;
-expr(ExprTree, MtypeList, FPid, Flag) when ExprTree#tree.value == expr2 ->
+expr(ExprTree, MtypeList, GlobalVarList, FPid, Flag) when ExprTree#tree.value == expr2 ->
     Expr2Child = ExprTree#tree.children,
     write({self(), {nl, "   ("}}, FPid),
-    expr(Expr2Child, MtypeList, FPid, Flag),
+    expr(Expr2Child, MtypeList, GlobalVarList, FPid, Flag),
     write({self(), {nl, "   )"}}, FPid).
 
 
@@ -158,6 +161,8 @@ convbinarop(BinOpAtom) ->
             'band';
         '|' ->
             'bor';
+        '<=' ->
+            '=<';
         _ ->
             BinOpAtom
     end.
@@ -200,16 +205,16 @@ startfun(FMPid, FPid, Source) ->
             % io:format("~p~n", [Funname]),
             write({self(), {append, f}}, FPid),
             write({self(), {append, Funname}}, FPid),
-            write({self(), {nl, "(VarList, ChanPidList) ->"}}, FPid)
-            % write({self(), {nl, "(VarList, ChanPidList, GPid) ->"}}, FPid)
+            % write({self(), {nl, "(VarList, ChanPidList) ->"}}, FPid)
+            write({self(), {nl, "(VarList, ChanPidList, GPid) ->"}}, FPid)
     end.
 
 endfun(FMPid, FPid, Target, VarListChangeFlag) ->
     case Target of
         exit ->
-            write({self(), {append, "   "}}, FPid),
+            write({self(), {append, "   f"}}, FPid),
             write({self(), {append, exit}}, FPid),
-            write({self(), {append, "()"}}, FPid);
+            write({self(), {append, "(GPid)"}}, FPid);
         _ ->
             FMPid ! {self(), {deffun, Target}},
             receive
@@ -218,40 +223,56 @@ endfun(FMPid, FPid, Target, VarListChangeFlag) ->
                     write({self(), {append, f}}, FPid),
                     write({self(), {append, Funname}}, FPid),
                     case VarListChangeFlag of
-                        % nochange ->
-                        %     write({self(), {append, "(VarList, ChanPidList, GPid)"}}, FPid);
-                        % changed ->
-                        %     write({self(), {append, "(NewVarList, ChanPidList, GPid)"}}, FPid)
                         nochange ->
-                            write({self(), {append, "(VarList, ChanPidList)"}}, FPid);
+                            write({self(), {append, "(VarList, ChanPidList, GPid)"}}, FPid);
                         changed ->
-                            write({self(), {append, "(NewVarList, ChanPidList)"}}, FPid)
+                            write({self(), {append, "(NewVarList, ChanPidList, GPid)"}}, FPid)
+                        % nochange ->
+                        %     write({self(), {append, "(VarList, ChanPidList)"}}, FPid);
+                        % changed ->
+                        %     write({self(), {append, "(NewVarList, ChanPidList)"}}, FPid)
                     end
             end
     end.
 
 genexit(FPid) ->
+    write({self(), {append, "f"}}, FPid),
     write({self(), {append, exit}}, FPid),
-    % write({self(), {nl, "(GPid) ->"}}, FPid),
-    write({self(), {nl, "() ->"}}, FPid),
-    % write({self(), {nl, "   GPid ! {self(), fin},"}}, FPid),
+    write({self(), {nl, "(GPid) ->"}}, FPid),
+    % write({self(), {nl, "() ->"}}, FPid),
+    write({self(), {nl, "   GPid ! {self(), fin},"}}, FPid),
     write({self(), {append, "   fin."}}, FPid).
 
-moduleSetup(ModuleName, ChanList, FPid) ->
+moduleSetup(ModuleName, ChanList, GlobalVarList, FPid) ->
     write({self(), {append, "-module("}}, FPid),
     write({self(), {append, ModuleName}}, FPid),
     write({self(), {nl, ")."}}, FPid),
     write({self(), {nl, "-export([start/1])."}}, FPid),
     write({self(), {nl, "start(ChanPidList) ->"}}, FPid),
-    % write({self(), {nl, "   GPid = spawn(fun() -> globalvarmanager:loop() end),"}}, FPid),
+    write({self(), {nl, "   GPid = spawn(fun() -> globalvarmanager:loop() end),"}}, FPid),
+    writeInitGlobalVar(GlobalVarList, FPid),
     write({self(), {nl, "   receive"}}, FPid),
     write({self(), {nl, "      start ->"}}, FPid),
-    % write({self(), {nl, "           f0([], ChanPidList, GPid)"}}, FPid),
-write({self(), {nl, "              f0([], ChanPidList)"}}, FPid),
+    write({self(), {nl, "           f0([], ChanPidList, GPid)"}}, FPid),
+% write({self(), {nl, "              f0([], ChanPidList)"}}, FPid),
     write({self(), {nl, "   end."}}, FPid).
     % write({self(), {nl, "   GPid = spawn(fun() -> globalvarmanager:loop() end),"}}, FPid),
     % write({self(), {nl, "   f0(GPid)."}}, FPid).
     % write({self(), {nl, "   f0([], ChanPidList)."}}, FPid).
+writeInitGlobalVar([], _) ->
+    fin;
+writeInitGlobalVar([GlobalVar|GlobalVars], FPid) ->
+    {Varname, Value} = GlobalVar,
+    write({self(), {append, "   GPid ! {self(), {reg, "}}, FPid),
+    write({self(), {append, Varname}}, FPid),
+    write({self(), {append, ", "}}, FPid),
+    write({self(), {append, Value}}, FPid),
+    write({self(), {nl, "}},"}}, FPid),
+    write({self(), {nl, "   receive"}}, FPid),
+    write({self(), {nl, "       {GPid, fin} ->"}}, FPid),
+    write({self(), {nl, "           skip"}}, FPid),
+    write({self(), {nl, "   end,"}}, FPid),
+    writeInitGlobalVar(GlobalVars, FPid).
 
 declVar([], _) ->
     fin;
@@ -264,16 +285,31 @@ declVar([Var|Vars], FPid) ->
     write({self(), {nl, " end, VarList)),"}}, FPid),
     declVar(Vars, FPid).
 
-declGuardVar([], _) ->
+declGuardVar([], _, _) ->
     fin;
-declGuardVar([Var|Vars], FPid) ->
-    write({self(), {append, "   {_, Tmp"}}, FPid),
-    TmpVar = atom_to_list(Var),
-    write({self(), {append, TmpVar}}, FPid),
-    write({self(), {append, "} = hd(lists:filter(fun(X) -> {Tmpname, _} = X, Tmpname == "}}, FPid),
-    write({self(), {append, Var}}, FPid),
-    write({self(), {nl, " end, VarList)),"}}, FPid),
-    declGuardVar(Vars, FPid).
+declGuardVar([Var|Vars], GlobalVarList, FPid) ->
+    case lists:any(fun({First, _}) -> First == Var end, GlobalVarList) of
+        false ->
+            write({self(), {append, "   {_, Tmp"}}, FPid),
+            TmpVar = atom_to_list(Var),
+            write({self(), {append, TmpVar}}, FPid),
+            write({self(), {append, "} = hd(lists:filter(fun(X) -> {Tmpname, _} = X, Tmpname == "}}, FPid),
+            write({self(), {append, Var}}, FPid),
+            write({self(), {nl, " end, VarList)),"}}, FPid),
+            declGuardVar(Vars, GlobalVarList, FPid);
+        true ->
+            write({self(), {append, "   GPid ! {self(), {get, "}}, FPid),
+            write({self(), {append, Var}}, FPid),
+            write({self(), {nl, "}},"}}, FPid),
+            write({self(), {nl, "   receive"}}, FPid),
+            write({self(), {append, "       {GPid, Tmp"}}, FPid),
+            GlobalVarName = atom_to_list(Var),
+            write({self(), {append, GlobalVarName}}, FPid),
+            write({self(), {nl, "} ->"}}, FPid),
+            write({self(), {nl, "           skip"}}, FPid),
+            write({self(), {nl, "   end,"}}, FPid),
+            declGuardVar(Vars, GlobalVarList, FPid)
+    end.
 
 writeListOperationForList(VarName, FPid) ->
     write({self(), {append, "   TmpVarList = lists:filter(fun(X) -> {TmpVarname, _} = X, TmpVarname /= "}}, FPid),
@@ -284,15 +320,40 @@ writeListOperationForList(VarName, FPid) ->
     write({self(), {append, ","}}, FPid),
     fin.
 
-send_args(SendArgs) ->
+writeGetGlobalVar([], _) ->
+    fin;
+writeGetGlobalVar([GlobalVar|GlobalVars], FPid) ->
+    write({self(), {append, "   GPid ! {self(), {get, "}}, FPid),
+    write({self(), {append, GlobalVar}}, FPid),
+    write({self(), {nl, "}},"}}, FPid),
+    write({self(), {nl, "   receive"}}, FPid),
+    write({self(), {append, "       {GPid, "}}, FPid),
+    GlobalVarName = atom_to_list(GlobalVar),
+    write({self(), {append, GlobalVarName}}, FPid),
+    write({self(), {nl, "} ->"}}, FPid),
+    write({self(), {nl, "           skip"}}, FPid),
+    write({self(), {nl, "   end,"}}, FPid),
+    writeGetGlobalVar(GlobalVars, FPid).
+
+% writeRegGlobalVar(GlobalVar, FPid) ->
+%     write({self(), {append, }}, FPid)
+
+send_args(SendArgs, MtypeList, GlobalVarList) ->
     Value = SendArgs#tree.value,
     SendArgsChild = SendArgs#tree.children,
     case Value of
         send_args1 ->
             {ValueList, TmpVarList} = any_expr(SendArgsChild,[]),
-            VarList = lists:usort(TmpVarList),
+            TmpVarList2 = lists:filter(fun(X) -> (MtypeList == []) or not(lists:any(fun(Y) -> Y == X end, MtypeList)) end, TmpVarList),
+            VarList = lists:usort(TmpVarList2),
+            % io:format("----------------VarList:~p~n", [VarList]),
+            % LocalVarList = lists:filter(fun(X) -> not(lists:member(X, GlobalVarList)) end, VarList),
+            LocalVarList = lists:filter(fun(X) -> not(lists:any(fun({First, _}) -> First == X end, GlobalVarList)) end, VarList),
+            % UseGlobalVarList = lists:filter(fun(X) -> lists:member(X, GlobalVarList) end, VarList),
+            UseGlobalVarList = lists:filter(fun(X) -> lists:any(fun({First, _}) -> First == X end, GlobalVarList) end, VarList),
+            % io:format("UseGlobalVarList:~p~n", [UseGlobalVarList]),
             NewValueList = lists:map(fun(X) -> case is_atom(X) of true -> atom_to_list(X); false -> X end end, ValueList),
-            {NewValueList, VarList};
+            {NewValueList, LocalVarList, UseGlobalVarList};
         send_args2 ->
             %tba
             {[], []}
