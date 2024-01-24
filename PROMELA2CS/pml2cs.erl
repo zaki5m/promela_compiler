@@ -136,7 +136,7 @@ genPG(Proc, Pid) ->
             my_utility:genedge(NewI, {true,skip}, exit, Pid),
             ProcName;
         notfin ->
-            pass
+            ProcName
     end.
     % Pid ! {self(), fin},
     % receive
